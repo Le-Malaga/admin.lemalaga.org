@@ -143,7 +143,38 @@ export default function App() {
     if (adminsRes.data) setAdminList(adminsRes.data as AdminUser[])
   }
 
+  const googleBtnRef = React.useRef<HTMLDivElement>(null)
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+
+  useEffect(() => {
+    if (!session && googleClientId && (window as any).google?.accounts?.id && googleBtnRef.current) {
+      ;(window as any).google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response: any) => {
+          if (response?.credential) {
+            const { error } = await supabase.auth.signInWithIdToken({
+              provider: 'google',
+              token: response.credential,
+            })
+            if (error) showToast('error', error.message)
+          }
+        },
+      })
+      ;(window as any).google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: 'filled_blue',
+        size: 'large',
+        width: 380,
+        text: 'continue_with',
+        shape: 'pill',
+      })
+    }
+  }, [session, authLoading, googleClientId])
+
   const handleGoogleLogin = async () => {
+    if (googleClientId && (window as any).google?.accounts?.id) {
+      ;(window as any).google.accounts.id.prompt()
+      return
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -416,6 +447,10 @@ export default function App() {
                 and resources.
               </p>
 
+              {googleClientId && (
+                <div ref={googleBtnRef} className="flex justify-center mb-4" />
+              )}
+
               <button
                 onClick={handleGoogleLogin}
                 className="w-full flex items-center justify-center gap-3 bg-[#d95a2b] hover:bg-[#b8461d] text-white font-heading text-lg uppercase font-bold tracking-wider py-3.5 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-0.5"
@@ -444,7 +479,7 @@ export default function App() {
           )}
 
           <div className="mt-6 pt-5 border-t border-[#3e4a28]/15 flex items-center justify-between text-xs text-[#3e4a28]/70">
-            <span>Supabase Project: ybovhrbnbednnxppofmv</span>
+            <span>Le Malaga CMS (admin.lemalaga.org)</span>
             <span>Row Level Security: Active</span>
           </div>
         </div>
