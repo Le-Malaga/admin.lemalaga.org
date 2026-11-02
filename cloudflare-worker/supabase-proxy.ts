@@ -1,5 +1,5 @@
 /**
- * Cloudflare Worker: Custom Domain Proxy for Le Malaga Supabase Backend
+ * Cloudflare Worker (TypeScript): Custom Domain Proxy for Le Malaga Supabase Backend
  * Route: api.lemalaga.org/*
  * Target: https://ybovhrbnbednnxppofmv.supabase.co
  *
@@ -11,7 +11,7 @@ const SUPABASE_ORIGIN = 'https://ybovhrbnbednnxppofmv.supabase.co'
 const SUPABASE_HOST = 'ybovhrbnbednnxppofmv.supabase.co'
 
 export default {
-  async fetch(request) {
+  async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
     const targetUrl = new URL(url.pathname + url.search, SUPABASE_ORIGIN)
 
