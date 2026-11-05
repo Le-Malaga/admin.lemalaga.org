@@ -1097,6 +1097,17 @@ export default function App() {
                       />
                     </label>
                   </div>
+                  <div className="mt-2 flex items-center gap-3 bg-white p-2.5 rounded-lg border border-[#3e4a28]/15">
+                    <span className="text-[11px] font-bold uppercase text-[#3e4a28]/60">Live Preview:</span>
+                    <img
+                      src={headerFooter.logoUrl || '/images/logo.png'}
+                      alt="Logo Preview"
+                      className="h-10 max-w-[200px] object-contain"
+                      onError={(e) => {
+                        ;(e.target as HTMLImageElement).src = '/images/logo.png'
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <div>
