@@ -979,7 +979,7 @@ export default function App() {
               Public Website CMS
             </div>
             {[
-              { id: 'header_footer', label: '1. Header, Logo & Footer', icon: LayoutTemplate },
+              { id: 'header_footer', label: '1. Identity, Favicon & Header', icon: LayoutTemplate },
               { id: 'pages', label: '2. Public Pages (All 12)', icon: FileText },
               { id: 'team', label: '3. Meet the Aiga (Team)', icon: Users },
               { id: 'stories', label: '4. Our Stories (Polaroids)', icon: BookOpen },
@@ -1037,11 +1037,11 @@ export default function App() {
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#3e4a28]/15 pb-4">
                 <div>
                   <h2 className="font-heading text-2xl uppercase font-extrabold text-[#3e4a28]">
-                    Global Header, Logo & Footer
+                    Site Identity, Favicon, SEO & Navigation
                   </h2>
                   <p className="text-sm text-[#3e4a28]/70">
-                    Controls the navigation bar, logo, Donate CTA button, and footer across all
-                    public pages.
+                    Controls the browser tab title, favicon icon, search engine (SEO) metadata,
+                    logo, and navigation bar across all public pages.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1065,9 +1065,10 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* 1. Header Logo */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
-                    Logo URL
+                    Header & Footer Logo URL
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -1080,9 +1081,10 @@ export default function App() {
                         })
                       }
                       className="flex-1 border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                      placeholder="https://www.lemalaga.org/images/logo.png"
                     />
                     <label className="cursor-pointer inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-2 rounded-lg">
-                      <Upload className="w-3.5 h-3.5" /> Upload
+                      <Upload className="w-3.5 h-3.5" /> Upload Logo
                       <input
                         type="file"
                         accept="image/*"
@@ -1099,7 +1101,7 @@ export default function App() {
                     </label>
                   </div>
                   <div className="mt-2 flex items-center gap-3 bg-white p-2.5 rounded-lg border border-[#3e4a28]/15">
-                    <span className="text-[11px] font-bold uppercase text-[#3e4a28]/60">Live Preview:</span>
+                    <span className="text-[11px] font-bold uppercase text-[#3e4a28]/60">Logo Preview:</span>
                     <img
                       src={resolveMediaUrl(headerFooter.logoUrl) || 'https://www.lemalaga.org/images/logo.png'}
                       alt="Logo Preview"
@@ -1111,6 +1113,78 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* 2. Browser Favicon */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                    Browser Tab Favicon URL (.png, .ico, .svg)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={headerFooter.faviconUrl || ''}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          header_footer: { ...headerFooter, faviconUrl: e.target.value },
+                        })
+                      }
+                      className="flex-1 border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                      placeholder="https://www.lemalaga.org/images/logo.png"
+                    />
+                    <label className="cursor-pointer inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-2 rounded-lg">
+                      <Upload className="w-3.5 h-3.5" /> Upload Favicon
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          handleFileUpload(e, (url) =>
+                            setSiteSettings({
+                              ...siteSettings,
+                              header_footer: { ...headerFooter, faviconUrl: url },
+                            })
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="mt-2 flex items-center gap-3 bg-white p-2.5 rounded-lg border border-[#3e4a28]/15">
+                    <span className="text-[11px] font-bold uppercase text-[#3e4a28]/60">Favicon Preview:</span>
+                    <img
+                      src={resolveMediaUrl(headerFooter.faviconUrl) || 'https://www.lemalaga.org/images/logo.png'}
+                      alt="Favicon Preview"
+                      className="w-7 h-7 object-contain rounded border p-0.5 bg-white shadow-sm"
+                      onError={(e) => {
+                        ;(e.target as HTMLImageElement).src = 'https://www.lemalaga.org/images/logo.png'
+                      }}
+                    />
+                    <span className="text-xs text-[#3e4a28]/70">Shown in browser tab next to title</span>
+                  </div>
+                </div>
+
+                {/* 3. Website Title & SEO Prefix */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                    Website Title / Brand Prefix
+                  </label>
+                  <input
+                    type="text"
+                    value={headerFooter.siteTitle || ''}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        header_footer: { ...headerFooter, siteTitle: e.target.value },
+                      })
+                    }
+                    placeholder="Le Malaga | Walking Alongside Pasifika Dementia Carers"
+                    className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                  />
+                  <p className="text-[11px] text-[#3e4a28]/60 mt-1">
+                    Controls browser tab name and Google search result titles.
+                  </p>
+                </div>
+
+                {/* 4. Header Italic Tagline */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
                     Header Italic Tagline
@@ -1126,8 +1200,12 @@ export default function App() {
                     }
                     className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
                   />
+                  <p className="text-[11px] text-[#3e4a28]/60 mt-1">
+                    Cultural tagline displayed next to logo on larger screens.
+                  </p>
                 </div>
 
+                {/* 5. Donate CTA Button Text */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
                     Donate CTA Button Text
@@ -1145,6 +1223,7 @@ export default function App() {
                   />
                 </div>
 
+                {/* 6. Donate CTA Destination Path / URL */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
                     Donate CTA Destination Path / URL
@@ -1160,6 +1239,95 @@ export default function App() {
                     }
                     className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
                   />
+                </div>
+
+                {/* 7. Google Search Meta Description */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                    Google Search Meta Description & Social Snippet
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={headerFooter.metaDescription || ''}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        header_footer: { ...headerFooter, metaDescription: e.target.value },
+                      })
+                    }
+                    placeholder="Supporting Pasifika families and aiga caring for loved ones living with dementia. Community, connection, and culturally grounded care in Aotearoa."
+                    className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                  />
+                  <p className="text-[11px] text-[#3e4a28]/60 mt-1">
+                    Recommended length: 140–160 characters. Appears under the title link in Google search results and link previews.
+                  </p>
+                </div>
+
+                {/* 8. OpenGraph / Social Share Preview Image */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                    Social Share Image (OpenGraph / Facebook / WhatsApp / iMessage)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={headerFooter.ogImageUrl || ''}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          header_footer: { ...headerFooter, ogImageUrl: e.target.value },
+                        })
+                      }
+                      className="flex-1 border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                      placeholder="https://www.lemalaga.org/images/hero-bg.jpg"
+                    />
+                    <label className="cursor-pointer inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-2 rounded-lg">
+                      <Upload className="w-3.5 h-3.5" /> Upload
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          handleFileUpload(e, (url) =>
+                            setSiteSettings({
+                              ...siteSettings,
+                              header_footer: { ...headerFooter, ogImageUrl: url },
+                            })
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="mt-2 flex items-center gap-3 bg-white p-2.5 rounded-lg border border-[#3e4a28]/15">
+                    <span className="text-[11px] font-bold uppercase text-[#3e4a28]/60">Social Card Preview:</span>
+                    <img
+                      src={resolveMediaUrl(headerFooter.ogImageUrl) || 'https://www.lemalaga.org/images/hero-bg.jpg'}
+                      alt="Social Preview"
+                      className="h-10 w-16 object-cover rounded border bg-gray-100"
+                    />
+                  </div>
+                </div>
+
+                {/* 9. SEO Keywords */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                    SEO Search Keywords
+                  </label>
+                  <input
+                    type="text"
+                    value={headerFooter.keywords || ''}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        header_footer: { ...headerFooter, keywords: e.target.value },
+                      })
+                    }
+                    placeholder="Pasifika dementia carers, carer support New Zealand, Le Malaga, Pacific aiga dementia"
+                    className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                  />
+                  <p className="text-[11px] text-[#3e4a28]/60 mt-1">
+                    Comma-separated keywords to help search engines index the site.
+                  </p>
                 </div>
               </div>
 
