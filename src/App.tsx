@@ -147,38 +147,63 @@ export default function App() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
   useEffect(() => {
-    if (!session && googleClientId && (window as any).google?.accounts?.id && googleBtnRef.current) {
-      ;(window as any).google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: async (response: any) => {
-          if (response?.credential) {
-            const { error } = await supabase.auth.signInWithIdToken({
-              provider: 'google',
-              token: response.credential,
-            })
-            if (error) showToast('error', error.message)
-          }
-        },
-      })
-      ;(window as any).google.accounts.id.renderButton(googleBtnRef.current, {
-        theme: 'filled_blue',
-        size: 'large',
-        width: 380,
-        text: 'continue_with',
-        shape: 'pill',
-      })
+    if (session || !googleClientId) return
+
+    const initGoogle = () => {
+      const g = (window as any).google
+      if (g?.accounts?.id && googleBtnRef.current) {
+        g.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async (response: any) => {
+            if (response?.credential) {
+              const { error } = await supabase.auth.signInWithIdToken({
+                provider: 'google',
+                token: response.credential,
+              })
+              if (error) showToast('error', error.message)
+            }
+          },
+        })
+        googleBtnRef.current.innerHTML = ''
+        g.accounts.id.renderButton(googleBtnRef.current, {
+          theme: 'outline',
+          size: 'large',
+          width: 360,
+          text: 'continue_with',
+          shape: 'rectangular',
+        })
+        return true
+      }
+      return false
+    }
+
+    if (!initGoogle()) {
+      const timer = setInterval(() => {
+        if (initGoogle()) clearInterval(timer)
+      }, 250)
+      return () => clearInterval(timer)
     }
   }, [session, authLoading, googleClientId])
 
   const handleGoogleLogin = async () => {
-    if (googleClientId && (window as any).google?.accounts?.id) {
-      ;(window as any).google.accounts.id.prompt()
+    const g = (window as any).google
+    if (googleClientId && g?.accounts?.id) {
+      g.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo: 'https://admin.lemalaga.org',
+            },
+          })
+        }
+      })
       return
     }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + window.location.pathname,
+        redirectTo: 'https://admin.lemalaga.org',
       },
     })
     if (error) showToast('error', error.message)
