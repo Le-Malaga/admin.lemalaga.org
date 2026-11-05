@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase, compressAndUploadImage, EXISTING_REPO_IMAGES } from './lib/supabase'
+import { MarkdownEditor } from './components/MarkdownEditor'
 import {
   LayoutTemplate,
   FileText,
@@ -521,10 +522,29 @@ export default function App() {
     navItems: [],
     footerDescription: '',
     contactEmail: 'lemalganz@gmail.com',
+    contactPhone: '027 123 4567',
+    contactLocation: 'Auckland, Aotearoa New Zealand',
+    weAcknowledge:
+      'We acknowledge the dedication, resilience, and profound love of carers who tirelessly look after their loved ones every day. We commit to honoring your journey, upholding your dignity, and walking beside you with respect, empathy, and cultural care.',
     instagramUrl: 'https://www.instagram.com/lemalaga_/',
     copyrightText: '© 2026 LE MALAGA. ALL RIGHTS RESERVED.',
     footerLinks: [],
+    quickLinks: [
+      { title: 'About Us', url: '/about' },
+      { title: 'Our Stories', url: '/stories' },
+      { title: 'Sunday Sessions', url: '/sunday-sessions' },
+      { title: 'Resources', url: '/resources' },
+      { title: 'Carer Support', url: '/support' },
+      { title: 'Get Involved', url: '/get-involved' },
+    ],
   }
+
+  const homeFeatures = siteSettings.home_features || []
+  const homeActionCards = siteSettings.home_action_cards || []
+  const supportCards = siteSettings.support_cards || []
+  const sundayHighlights = siteSettings.sunday_highlights || []
+  const resourcesReading = siteSettings.resources_reading || []
+  const getInvolvedCards = siteSettings.get_involved_cards || []
 
   const nextSundaySession = siteSettings.next_sunday_session || {
     badge: 'UPCOMING SESSION',
@@ -555,8 +575,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f3eedf] text-[#2c351b] flex flex-col">
       {/* Top Admin Bar */}
-      <header className="bg-[#3e4a28] text-[#faf9f4] border-b-4 border-[#d95a2b] px-6 py-3.5 sticky top-0 z-40 shadow-lg">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <header className="bg-[#3e4a28] text-[#faf9f4] border-b-4 border-[#d95a2b] px-4 sm:px-6 lg:px-8 py-3.5 sticky top-0 z-40 shadow-lg">
+        <div className="w-full max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img
               src={headerFooter.logoUrl || 'https://www.lemalaga.org/images/logo.png'}
@@ -615,10 +635,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Layout */}
-      <div className="max-w-7xl w-full mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6">
+      {/* Main Layout - Full-width modern responsive dashboard */}
+      <div className="w-full max-w-[1920px] mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 px-4 sm:px-6 lg:px-8 py-6">
         {/* Sidebar Navigation */}
-        <aside className="lg:col-span-3 space-y-2">
+        <aside className="lg:col-span-3 xl:col-span-2 space-y-3">
           <div className="bg-[#faf9f4] border-2 border-[#3e4a28]/20 rounded-2xl p-3 shadow-sm space-y-1">
             <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-[#3e4a28]/60">
               Public Website CMS
@@ -675,7 +695,7 @@ export default function App() {
         </aside>
 
         {/* Main Content Editor */}
-        <main className="lg:col-span-9 space-y-6">
+        <main className="lg:col-span-9 xl:col-span-10 space-y-6">
           {/* TAB 1: HEADER, LOGO & FOOTER */}
           {activeTab === 'header_footer' && (
             <div className="bg-[#faf9f4] border-2 border-[#3e4a28]/20 rounded-2xl p-6 shadow-sm space-y-6">
@@ -926,6 +946,57 @@ export default function App() {
                     className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                    Contact Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={headerFooter.contactPhone || ''}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        header_footer: { ...headerFooter, contactPhone: e.target.value },
+                      })
+                    }
+                    placeholder="027 123 4567"
+                    className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                    Contact Location / City
+                  </label>
+                  <input
+                    type="text"
+                    value={headerFooter.contactLocation || ''}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        header_footer: { ...headerFooter, contactLocation: e.target.value },
+                      })
+                    }
+                    placeholder="Auckland, Aotearoa New Zealand"
+                    className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                    Cultural Acknowledgment ("We Acknowledge")
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={headerFooter.weAcknowledge || ''}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        header_footer: { ...headerFooter, weAcknowledge: e.target.value },
+                      })
+                    }
+                    placeholder="We acknowledge the dedication, resilience, and profound love of carers..."
+                    className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
+                  />
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
                     Copyright Line
@@ -941,6 +1012,83 @@ export default function App() {
                     }
                     className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white"
                   />
+                </div>
+              </div>
+
+              {/* Footer Quick Links Editor */}
+              <div className="pt-4 border-t border-[#3e4a28]/15 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-heading text-lg uppercase font-bold text-[#3e4a28]">
+                      Footer Quick Links ({(headerFooter.quickLinks || []).length})
+                    </h3>
+                    <p className="text-xs text-[#3e4a28]/70">
+                      Configure navigation links shown under "Quick Links" in the website footer.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const current = headerFooter.quickLinks || []
+                      const next = [...current, { title: 'New Link', url: '/' }]
+                      setSiteSettings({
+                        ...siteSettings,
+                        header_footer: { ...headerFooter, quickLinks: next },
+                      })
+                    }}
+                    className="inline-flex items-center gap-1.5 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg hover:bg-[#2b341c] transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Footer Link
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {(headerFooter.quickLinks || []).map((link: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-[#3e4a28]/20"
+                    >
+                      <input
+                        type="text"
+                        value={link.title || ''}
+                        onChange={(e) => {
+                          const next = [...headerFooter.quickLinks]
+                          next[idx] = { ...link, title: e.target.value }
+                          setSiteSettings({
+                            ...siteSettings,
+                            header_footer: { ...headerFooter, quickLinks: next },
+                          })
+                        }}
+                        placeholder="Link Label"
+                        className="flex-1 border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={link.url || ''}
+                        onChange={(e) => {
+                          const next = [...headerFooter.quickLinks]
+                          next[idx] = { ...link, url: e.target.value }
+                          setSiteSettings({
+                            ...siteSettings,
+                            header_footer: { ...headerFooter, quickLinks: next },
+                          })
+                        }}
+                        placeholder="/path or https://..."
+                        className="flex-1 border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          const next = headerFooter.quickLinks.filter((_: any, i: number) => i !== idx)
+                          setSiteSettings({
+                            ...siteSettings,
+                            header_footer: { ...headerFooter, quickLinks: next },
+                          })
+                        }}
+                        className="text-red-600 hover:bg-red-50 p-1.5 rounded transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1093,22 +1241,20 @@ export default function App() {
                   </div>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
-                    Page Markdown Content (Supports Headings, Bullet Lists, Bold, Links)
-                  </label>
-                  <textarea
-                    rows={8}
+                  <MarkdownEditor
+                    label="Page Markdown Content (WYSIWYG Toolbar & Live Preview)"
                     value={selectedPage.content_markdown || ''}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setPages(
                         pages.map((p) =>
                           p.slug === selectedPage.slug
-                            ? { ...p, content_markdown: e.target.value }
+                            ? { ...p, content_markdown: val }
                             : p
                         )
                       )
                     }
-                    className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm font-mono bg-white"
+                    placeholder="Write page content in Markdown (use ## for section headings, - for bullet points, **bold**, etc.)..."
+                    rows={10}
                   />
                 </div>
               </div>
@@ -1362,6 +1508,626 @@ export default function App() {
                   ))}
                 </div>
               </div>
+
+              {/* CONTEXTUAL CARDS: HOMEPAGE FEATURES & ACTION CARDS */}
+              {selectedPage.slug === 'home' && (
+                <div className="space-y-6 pt-6 border-t border-[#3e4a28]/20">
+                  {/* Home Features Bar */}
+                  <div className="bg-white border border-[#3e4a28]/20 rounded-xl p-5 space-y-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#3e4a28]/15 pb-3">
+                      <div>
+                        <h3 className="font-heading text-lg uppercase font-bold text-[#3e4a28]">
+                          Homepage Features Bar ({homeFeatures.length} Items)
+                        </h3>
+                        <p className="text-xs text-[#3e4a28]/70">
+                          The 4 highlighted pillars displayed right beneath the hero banner on the homepage.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const next = [
+                              ...homeFeatures,
+                              {
+                                id: `feat-${Date.now()}`,
+                                title: 'New Feature',
+                                subtitle: 'Feature description',
+                                icon: 'Shield',
+                              },
+                            ]
+                            setSiteSettings({ ...siteSettings, home_features: next })
+                          }}
+                          className="inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg hover:bg-[#2c351b] transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Pillar
+                        </button>
+                        <button
+                          onClick={() => saveSetting('home_features', homeFeatures)}
+                          disabled={saving}
+                          className="inline-flex items-center gap-1.5 bg-[#d95a2b] hover:bg-[#b8461d] text-white text-xs font-bold uppercase px-3.5 py-1.5 rounded-lg shadow transition"
+                        >
+                          <Save className="w-3.5 h-3.5" /> Save Features
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {homeFeatures.map((feat: any, idx: number) => (
+                        <div
+                          key={feat.id || idx}
+                          className="p-3 bg-[#faf9f4] border border-[#3e4a28]/15 rounded-lg space-y-2 relative"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#d95a2b]">
+                              Pillar #{idx + 1}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const next = homeFeatures.filter((_: any, i: number) => i !== idx)
+                                setSiteSettings({ ...siteSettings, home_features: next })
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                              Icon
+                            </label>
+                            <select
+                              value={feat.icon || 'Shield'}
+                              onChange={(e) => {
+                                const next = [...homeFeatures]
+                                next[idx] = { ...feat, icon: e.target.value }
+                                setSiteSettings({ ...siteSettings, home_features: next })
+                              }}
+                              className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs bg-white"
+                            >
+                              <option value="Shield">Shield (Safe Haven)</option>
+                              <option value="Users">Users (Community Led)</option>
+                              <option value="BookOpen">BookOpen (Shared Wisdom)</option>
+                              <option value="Clock">Clock (Weekly Support)</option>
+                              <option value="Heart">Heart (Compassion)</option>
+                              <option value="Sparkles">Sparkles (Spiritual)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                              Title
+                            </label>
+                            <input
+                              type="text"
+                              value={feat.title || ''}
+                              onChange={(e) => {
+                                const next = [...homeFeatures]
+                                next[idx] = { ...feat, title: e.target.value }
+                                setSiteSettings({ ...siteSettings, home_features: next })
+                              }}
+                              className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                              Subtitle
+                            </label>
+                            <input
+                              type="text"
+                              value={feat.subtitle || ''}
+                              onChange={(e) => {
+                                const next = [...homeFeatures]
+                                next[idx] = { ...feat, subtitle: e.target.value }
+                                setSiteSettings({ ...siteSettings, home_features: next })
+                              }}
+                              className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Home Action Cards */}
+                  <div className="bg-white border border-[#3e4a28]/20 rounded-xl p-5 space-y-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#3e4a28]/15 pb-3">
+                      <div>
+                        <h3 className="font-heading text-lg uppercase font-bold text-[#3e4a28]">
+                          Homepage Action Cards ({homeActionCards.length} Cards)
+                        </h3>
+                        <p className="text-xs text-[#3e4a28]/70">
+                          The 4 visual navigation cards with photos, descriptions, and CTA links on the homepage.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const next = [
+                              ...homeActionCards,
+                              {
+                                id: `card-${Date.now()}`,
+                                title: 'New Card',
+                                description: 'Card description here',
+                                image: 'https://www.lemalaga.org/images/zoom_meeting.jpg',
+                                tag: 'SECTION',
+                                link: '/support',
+                                ctaLabel: 'LEARN MORE',
+                              },
+                            ]
+                            setSiteSettings({ ...siteSettings, home_action_cards: next })
+                          }}
+                          className="inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg hover:bg-[#2c351b] transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Action Card
+                        </button>
+                        <button
+                          onClick={() => saveSetting('home_action_cards', homeActionCards)}
+                          disabled={saving}
+                          className="inline-flex items-center gap-1.5 bg-[#d95a2b] hover:bg-[#b8461d] text-white text-xs font-bold uppercase px-3.5 py-1.5 rounded-lg shadow transition"
+                        >
+                          <Save className="w-3.5 h-3.5" /> Save Action Cards
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {homeActionCards.map((card: any, idx: number) => (
+                        <div
+                          key={card.id || idx}
+                          className="p-4 bg-[#faf9f4] border border-[#3e4a28]/15 rounded-xl space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-[#d95a2b]">
+                              Card #{idx + 1}: {card.title}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const next = homeActionCards.filter((_: any, i: number) => i !== idx)
+                                setSiteSettings({ ...siteSettings, home_action_cards: next })
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Title
+                              </label>
+                              <input
+                                type="text"
+                                value={card.title || ''}
+                                onChange={(e) => {
+                                  const next = [...homeActionCards]
+                                  next[idx] = { ...card, title: e.target.value }
+                                  setSiteSettings({ ...siteSettings, home_action_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Tag / Badge
+                              </label>
+                              <input
+                                type="text"
+                                value={card.tag || ''}
+                                onChange={(e) => {
+                                  const next = [...homeActionCards]
+                                  next[idx] = { ...card, tag: e.target.value }
+                                  setSiteSettings({ ...siteSettings, home_action_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                              />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Image URL
+                              </label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={card.image || ''}
+                                  onChange={(e) => {
+                                    const next = [...homeActionCards]
+                                    next[idx] = { ...card, image: e.target.value }
+                                    setSiteSettings({ ...siteSettings, home_action_cards: next })
+                                  }}
+                                  className="flex-1 border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs font-mono"
+                                />
+                                <label className="cursor-pointer inline-flex items-center gap-1 bg-[#3e4a28] text-white text-[11px] font-bold uppercase px-2.5 py-1 rounded">
+                                  <Upload className="w-3 h-3" /> WebP
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      handleFileUpload(e, (url) => {
+                                        const next = [...homeActionCards]
+                                        next[idx] = { ...card, image: url }
+                                        setSiteSettings({ ...siteSettings, home_action_cards: next })
+                                      })
+                                    }
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Description
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={card.description || ''}
+                                onChange={(e) => {
+                                  const next = [...homeActionCards]
+                                  next[idx] = { ...card, description: e.target.value }
+                                  setSiteSettings({ ...siteSettings, home_action_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Link Destination
+                              </label>
+                              <input
+                                type="text"
+                                value={card.link || ''}
+                                onChange={(e) => {
+                                  const next = [...homeActionCards]
+                                  next[idx] = { ...card, link: e.target.value }
+                                  setSiteSettings({ ...siteSettings, home_action_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Button Label
+                              </label>
+                              <input
+                                type="text"
+                                value={card.ctaLabel || 'LEARN MORE'}
+                                onChange={(e) => {
+                                  const next = [...homeActionCards]
+                                  next[idx] = { ...card, ctaLabel: e.target.value }
+                                  setSiteSettings({ ...siteSettings, home_action_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs font-bold"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CONTEXTUAL CARDS: SUPPORT SERVICES CARDS */}
+              {selectedPage.slug === 'support' && (
+                <div className="pt-6 border-t border-[#3e4a28]/20">
+                  <div className="bg-white border border-[#3e4a28]/20 rounded-xl p-5 space-y-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#3e4a28]/15 pb-3">
+                      <div>
+                        <h3 className="font-heading text-lg uppercase font-bold text-[#3e4a28]">
+                          Support Services Cards ({supportCards.length} Cards)
+                        </h3>
+                        <p className="text-xs text-[#3e4a28]/70">
+                          The 3 structured pillars on the Carer Support page ("How We Can Help").
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const next = [
+                              ...supportCards,
+                              {
+                                id: `sup-${Date.now()}`,
+                                title: 'New Support Service',
+                                description: 'Description of service',
+                                points: ['Benefit 1', 'Benefit 2'],
+                                actionText: 'GET SUPPORT',
+                                actionUrl: 'mailto:lemalganz@gmail.com',
+                              },
+                            ]
+                            setSiteSettings({ ...siteSettings, support_cards: next })
+                          }}
+                          className="inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg hover:bg-[#2c351b] transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Service Card
+                        </button>
+                        <button
+                          onClick={() => saveSetting('support_cards', supportCards)}
+                          disabled={saving}
+                          className="inline-flex items-center gap-1.5 bg-[#d95a2b] hover:bg-[#b8461d] text-white text-xs font-bold uppercase px-3.5 py-1.5 rounded-lg shadow transition"
+                        >
+                          <Save className="w-3.5 h-3.5" /> Save Support Cards
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {supportCards.map((card: any, idx: number) => (
+                        <div
+                          key={card.id || idx}
+                          className="p-4 bg-[#faf9f4] border border-[#3e4a28]/15 rounded-xl space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-[#d95a2b]">
+                              Service #{idx + 1}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const next = supportCards.filter((_: any, i: number) => i !== idx)
+                                setSiteSettings({ ...siteSettings, support_cards: next })
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                              Title
+                            </label>
+                            <input
+                              type="text"
+                              value={card.title || ''}
+                              onChange={(e) => {
+                                const next = [...supportCards]
+                                next[idx] = { ...card, title: e.target.value }
+                                setSiteSettings({ ...siteSettings, support_cards: next })
+                              }}
+                              className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                              Description
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={card.description || ''}
+                              onChange={(e) => {
+                                const next = [...supportCards]
+                                next[idx] = { ...card, description: e.target.value }
+                                setSiteSettings({ ...siteSettings, support_cards: next })
+                              }}
+                              className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                              Key Points (One per line)
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={Array.isArray(card.points) ? card.points.join('\n') : card.points || ''}
+                              onChange={(e) => {
+                                const next = [...supportCards]
+                                next[idx] = {
+                                  ...card,
+                                  points: e.target.value.split('\n').filter((l) => l.trim().length > 0),
+                                }
+                                setSiteSettings({ ...siteSettings, support_cards: next })
+                              }}
+                              className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Button Text
+                              </label>
+                              <input
+                                type="text"
+                                value={card.actionText || 'JOIN A GROUP'}
+                                onChange={(e) => {
+                                  const next = [...supportCards]
+                                  next[idx] = { ...card, actionText: e.target.value }
+                                  setSiteSettings({ ...siteSettings, support_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Action URL
+                              </label>
+                              <input
+                                type="text"
+                                value={card.actionUrl || ''}
+                                onChange={(e) => {
+                                  const next = [...supportCards]
+                                  next[idx] = { ...card, actionUrl: e.target.value }
+                                  setSiteSettings({ ...siteSettings, support_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CONTEXTUAL CARDS: GET INVOLVED CARDS */}
+              {selectedPage.slug === 'get-involved' && (
+                <div className="pt-6 border-t border-[#3e4a28]/20">
+                  <div className="bg-white border border-[#3e4a28]/20 rounded-xl p-5 space-y-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#3e4a28]/15 pb-3">
+                      <div>
+                        <h3 className="font-heading text-lg uppercase font-bold text-[#3e4a28]">
+                          Join the Movement Cards ({getInvolvedCards.length} Cards)
+                        </h3>
+                        <p className="text-xs text-[#3e4a28]/70">
+                          The 3 action cards on the Get Involved page (Member, Volunteer, Donate).
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const next = [
+                              ...getInvolvedCards,
+                              {
+                                id: `inv-${Date.now()}`,
+                                icon: 'Users',
+                                title: 'New Opportunity',
+                                description: 'Description of how community can get involved.',
+                                buttonText: 'GET INVOLVED',
+                                buttonUrl: 'mailto:lemalganz@gmail.com',
+                                theme: 'dark',
+                              },
+                            ]
+                            setSiteSettings({ ...siteSettings, get_involved_cards: next })
+                          }}
+                          className="inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg hover:bg-[#2c351b] transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Movement Card
+                        </button>
+                        <button
+                          onClick={() => saveSetting('get_involved_cards', getInvolvedCards)}
+                          disabled={saving}
+                          className="inline-flex items-center gap-1.5 bg-[#d95a2b] hover:bg-[#b8461d] text-white text-xs font-bold uppercase px-3.5 py-1.5 rounded-lg shadow transition"
+                        >
+                          <Save className="w-3.5 h-3.5" /> Save Movement Cards
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {getInvolvedCards.map((card: any, idx: number) => (
+                        <div
+                          key={card.id || idx}
+                          className={`p-4 bg-[#faf9f4] border rounded-xl space-y-3 ${
+                            card.theme === 'orange'
+                              ? 'border-t-4 border-t-[#d95a2b] border-[#3e4a28]/15'
+                              : 'border-[#3e4a28]/15'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-[#d95a2b]">
+                              Card #{idx + 1}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const next = getInvolvedCards.filter((_: any, i: number) => i !== idx)
+                                setSiteSettings({ ...siteSettings, get_involved_cards: next })
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Icon
+                              </label>
+                              <select
+                                value={card.icon || 'Users'}
+                                onChange={(e) => {
+                                  const next = [...getInvolvedCards]
+                                  next[idx] = { ...card, icon: e.target.value }
+                                  setSiteSettings({ ...siteSettings, get_involved_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs bg-white"
+                              >
+                                <option value="Users">Users (Member)</option>
+                                <option value="HandHeart">HandHeart (Volunteer)</option>
+                                <option value="Heart">Heart (Donate)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Theme Color
+                              </label>
+                              <select
+                                value={card.theme || 'dark'}
+                                onChange={(e) => {
+                                  const next = [...getInvolvedCards]
+                                  next[idx] = { ...card, theme: e.target.value }
+                                  setSiteSettings({ ...siteSettings, get_involved_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs bg-white"
+                              >
+                                <option value="dark">Dark Green</option>
+                                <option value="orange">Orange (Featured)</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                              Title
+                            </label>
+                            <input
+                              type="text"
+                              value={card.title || ''}
+                              onChange={(e) => {
+                                const next = [...getInvolvedCards]
+                                next[idx] = { ...card, title: e.target.value }
+                                setSiteSettings({ ...siteSettings, get_involved_cards: next })
+                              }}
+                              className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                              Description
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={card.description || ''}
+                              onChange={(e) => {
+                                const next = [...getInvolvedCards]
+                                next[idx] = { ...card, description: e.target.value }
+                                setSiteSettings({ ...siteSettings, get_involved_cards: next })
+                              }}
+                              className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Button Text
+                              </label>
+                              <input
+                                type="text"
+                                value={card.buttonText || 'LEARN MORE'}
+                                onChange={(e) => {
+                                  const next = [...getInvolvedCards]
+                                  next[idx] = { ...card, buttonText: e.target.value }
+                                  setSiteSettings({ ...siteSettings, get_involved_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                                Button URL / Mailto
+                              </label>
+                              <input
+                                type="text"
+                                value={card.buttonUrl || ''}
+                                onChange={(e) => {
+                                  const next = [...getInvolvedCards]
+                                  next[idx] = { ...card, buttonUrl: e.target.value }
+                                  setSiteSettings({ ...siteSettings, get_involved_cards: next })
+                                }}
+                                className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1806,20 +2572,18 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase text-[#3e4a28] mb-1">
-                      Full Story Content (Markdown with ## Section Headings)
-                    </label>
-                    <textarea
-                      rows={12}
+                    <MarkdownEditor
+                      label="Full Story Content (WYSIWYG Markdown & Live Preview)"
                       value={selectedStory.full_story || ''}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setStories(
                           stories.map((s) =>
-                            s.id === selectedStory.id ? { ...s, full_story: e.target.value } : s
+                            s.id === selectedStory.id ? { ...s, full_story: val } : s
                           )
                         )
                       }
-                      className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm font-mono"
+                      rows={14}
+                      placeholder="Write full story in Markdown (use ## for section titles, > for quotes, etc.)..."
                     />
                   </div>
                 </div>
@@ -2223,6 +2987,121 @@ export default function App() {
                   ))}
                 </div>
               </div>
+
+              {/* Sunday Sessions Highlights (Open Talanoa & Cameras Optional Callouts) */}
+              <div className="bg-[#faf9f4] border-2 border-[#3e4a28]/20 rounded-2xl p-6 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#3e4a28]/15 pb-3">
+                  <div>
+                    <h3 className="font-heading text-xl uppercase font-bold text-[#3e4a28]">
+                      Sunday Sessions Callouts ({sundayHighlights.length} Highlights)
+                    </h3>
+                    <p className="text-xs text-[#3e4a28]/70">
+                      Feature callout blocks displayed beside the Next Session card on the Sunday Sessions page.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const next = [
+                          ...sundayHighlights,
+                          {
+                            id: `sh-${Date.now()}`,
+                            title: 'New Session Highlight',
+                            description: 'Highlight description here',
+                            icon: 'MessageCircle',
+                          },
+                        ]
+                        setSiteSettings({ ...siteSettings, sunday_highlights: next })
+                      }}
+                      className="inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg hover:bg-[#2c351b] transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Highlight
+                    </button>
+                    <button
+                      onClick={() => saveSetting('sunday_highlights', sundayHighlights)}
+                      disabled={saving}
+                      className="inline-flex items-center gap-1.5 bg-[#d95a2b] hover:bg-[#b8461d] text-white text-xs font-bold uppercase px-3.5 py-1.5 rounded-lg shadow transition"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Save Callouts
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {sundayHighlights.map((sh: any, idx: number) => (
+                    <div
+                      key={sh.id || idx}
+                      className="p-4 bg-white border border-[#3e4a28]/20 rounded-xl space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#d95a2b]">
+                          Callout #{idx + 1}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const next = sundayHighlights.filter((_: any, i: number) => i !== idx)
+                            setSiteSettings({ ...siteSettings, sunday_highlights: next })
+                          }}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                            Icon
+                          </label>
+                          <select
+                            value={sh.icon || 'MessageCircle'}
+                            onChange={(e) => {
+                              const next = [...sundayHighlights]
+                              next[idx] = { ...sh, icon: e.target.value }
+                              setSiteSettings({ ...siteSettings, sunday_highlights: next })
+                            }}
+                            className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs bg-white"
+                          >
+                            <option value="MessageCircle">MessageCircle (Talanoa)</option>
+                            <option value="Video">Video (Cameras Optional)</option>
+                            <option value="Heart">Heart (Pastoral Care)</option>
+                            <option value="Sparkles">Sparkles (Devotion)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                            Title
+                          </label>
+                          <input
+                            type="text"
+                            value={sh.title || ''}
+                            onChange={(e) => {
+                              const next = [...sundayHighlights]
+                              next[idx] = { ...sh, title: e.target.value }
+                              setSiteSettings({ ...siteSettings, sunday_highlights: next })
+                            }}
+                            className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs font-bold"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                          Description
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={sh.description || ''}
+                          onChange={(e) => {
+                            const next = [...sundayHighlights]
+                            next[idx] = { ...sh, description: e.target.value }
+                            setSiteSettings({ ...siteSettings, sunday_highlights: next })
+                          }}
+                          className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -2328,6 +3207,136 @@ export default function App() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Recommended Reading & Educational Media */}
+              <div className="bg-[#faf9f4] border-2 border-[#3e4a28]/20 rounded-2xl p-6 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#3e4a28]/15 pb-3">
+                  <div>
+                    <h3 className="font-heading text-xl uppercase font-bold text-[#3e4a28]">
+                      Recommended Reading & Educational Media ({resourcesReading.length} Items)
+                    </h3>
+                    <p className="text-xs text-[#3e4a28]/70">
+                      The side card items displayed beside the resources list on the Carer Resources page.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const next = [
+                          ...resourcesReading,
+                          {
+                            id: `rr-${Date.now()}`,
+                            title: 'New Recommended Material',
+                            description: 'Description of guide, book, or webinar series.',
+                            icon: 'Book',
+                            link: '',
+                          },
+                        ]
+                        setSiteSettings({ ...siteSettings, resources_reading: next })
+                      }}
+                      className="inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg hover:bg-[#2c351b] transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Material
+                    </button>
+                    <button
+                      onClick={() => saveSetting('resources_reading', resourcesReading)}
+                      disabled={saving}
+                      className="inline-flex items-center gap-1.5 bg-[#d95a2b] hover:bg-[#b8461d] text-white text-xs font-bold uppercase px-3.5 py-1.5 rounded-lg shadow transition"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Save Reading List
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {resourcesReading.map((item: any, idx: number) => (
+                    <div
+                      key={item.id || idx}
+                      className="p-4 bg-white border border-[#3e4a28]/20 rounded-xl space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#d95a2b]">
+                          Material #{idx + 1}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const next = resourcesReading.filter((_: any, i: number) => i !== idx)
+                            setSiteSettings({ ...siteSettings, resources_reading: next })
+                          }}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                            Format / Icon
+                          </label>
+                          <select
+                            value={item.icon || 'Book'}
+                            onChange={(e) => {
+                              const next = [...resourcesReading]
+                              next[idx] = { ...item, icon: e.target.value }
+                              setSiteSettings({ ...siteSettings, resources_reading: next })
+                            }}
+                            className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs bg-white"
+                          >
+                            <option value="Book">Book / PDF Guide</option>
+                            <option value="Video">Video / Webinar</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                            Title
+                          </label>
+                          <input
+                            type="text"
+                            value={item.title || ''}
+                            onChange={(e) => {
+                              const next = [...resourcesReading]
+                              next[idx] = { ...item, title: e.target.value }
+                              setSiteSettings({ ...siteSettings, resources_reading: next })
+                            }}
+                            className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs font-bold"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                          External Link URL (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={item.link || ''}
+                          onChange={(e) => {
+                            const next = [...resourcesReading]
+                            next[idx] = { ...item, link: e.target.value }
+                            setSiteSettings({ ...siteSettings, resources_reading: next })
+                          }}
+                          placeholder="https://..."
+                          className="w-full border border-[#3e4a28]/20 rounded px-2 py-1 text-xs font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-[#3e4a28]/70 mb-0.5">
+                          Description
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={item.description || ''}
+                          onChange={(e) => {
+                            const next = [...resourcesReading]
+                            next[idx] = { ...item, description: e.target.value }
+                            setSiteSettings({ ...siteSettings, resources_reading: next })
+                          }}
+                          className="w-full border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
