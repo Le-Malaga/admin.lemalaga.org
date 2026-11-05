@@ -4,6 +4,7 @@ import {
   compressAndUploadImage,
   EXISTING_REPO_IMAGES,
   toVideoEmbedUrl,
+  resolveMediaUrl,
 } from './lib/supabase'
 import { MarkdownEditor } from './components/MarkdownEditor'
 import {
@@ -1100,11 +1101,11 @@ export default function App() {
                   <div className="mt-2 flex items-center gap-3 bg-white p-2.5 rounded-lg border border-[#3e4a28]/15">
                     <span className="text-[11px] font-bold uppercase text-[#3e4a28]/60">Live Preview:</span>
                     <img
-                      src={headerFooter.logoUrl || '/images/logo.png'}
+                      src={resolveMediaUrl(headerFooter.logoUrl) || 'https://www.lemalaga.org/images/logo.png'}
                       alt="Logo Preview"
                       className="h-10 max-w-[200px] object-contain"
                       onError={(e) => {
-                        ;(e.target as HTMLImageElement).src = '/images/logo.png'
+                        ;(e.target as HTMLImageElement).src = 'https://www.lemalaga.org/images/logo.png'
                       }}
                     />
                   </div>
@@ -2571,9 +2572,12 @@ export default function App() {
                   >
                     <div className="md:col-span-3 flex flex-col items-center gap-2">
                       <img
-                        src={member.image_url}
+                        src={resolveMediaUrl(member.image_url)}
                         alt={member.name}
-                        className="w-32 h-36 object-cover rounded-lg border-2 border-[#3e4a28]/20 shadow"
+                        className="w-32 h-36 object-cover rounded-lg border-2 border-[#3e4a28]/20 shadow bg-white"
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).src = 'https://www.lemalaga.org/images/flory1.jpg'
+                        }}
                       />
                       <label className="cursor-pointer inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg">
                         <Upload className="w-3.5 h-3.5" /> Upload Photo
@@ -2791,9 +2795,12 @@ export default function App() {
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#3e4a28]/10 pb-3">
                     <div className="flex items-center gap-3">
                       <img
-                        src={selectedStory.cover_image_url}
+                        src={resolveMediaUrl(selectedStory.cover_image_url || selectedStory.image)}
                         alt={selectedStory.title}
-                        className="w-16 h-16 rounded-lg object-cover border border-[#3e4a28]/30"
+                        className="w-16 h-16 rounded-lg object-cover border border-[#3e4a28]/30 bg-white"
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).src = 'https://www.lemalaga.org/images/Melissa_1.png'
+                        }}
                       />
                       <div>
                         <span className="text-xs font-bold uppercase text-[#d95a2b]">

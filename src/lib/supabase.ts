@@ -110,3 +110,16 @@ export function toVideoEmbedUrl(url: string): string {
 
   return trimmed
 }
+
+/**
+ * Resolves any relative media URL (/images/...) to the live canonical public site URL
+ * or fallback image to prevent 404s when previewing inside admin.lemalaga.org.
+ */
+export function resolveMediaUrl(url?: string): string {
+  if (!url || typeof url !== 'string') return ''
+  const trimmed = url.trim()
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    return `https://www.lemalaga.org${trimmed}`
+  }
+  return trimmed
+}
