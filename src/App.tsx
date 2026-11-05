@@ -1335,41 +1335,48 @@ export default function App() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-[#3e4a28]">
-                    Top Navigation Bar Links
+                    Top Navigation Bar Links ({((headerFooter.navItems && headerFooter.navItems.length > 0) ? headerFooter.navItems : (headerFooter.nav_links || [])).length})
                   </label>
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      const current = (headerFooter.navItems && headerFooter.navItems.length > 0)
+                        ? headerFooter.navItems
+                        : (headerFooter.nav_links || [])
+                      const next = [
+                        ...current,
+                        { label: 'NEW LINK', name: 'NEW LINK', path: '/about', url: '/about', visible: true },
+                      ]
                       setSiteSettings({
                         ...siteSettings,
-                        header_footer: {
-                          ...headerFooter,
-                          navItems: [
-                            ...(headerFooter.navItems || []),
-                            { label: 'NEW LINK', path: '/about', visible: true },
-                          ],
-                        },
+                        header_footer: { ...headerFooter, navItems: next, nav_links: next },
                       })
-                    }
+                    }}
                     className="inline-flex items-center gap-1 text-xs font-bold text-[#d95a2b] hover:underline"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Nav Item
                   </button>
                 </div>
                 <div className="space-y-2">
-                  {(headerFooter.navItems || []).map((item: any, idx: number) => (
+                  {((headerFooter.navItems && headerFooter.navItems.length > 0)
+                    ? headerFooter.navItems
+                    : (headerFooter.nav_links || [])
+                  ).map((item: any, idx: number) => (
                     <div
                       key={idx}
                       className="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-[#3e4a28]/20"
                     >
                       <input
                         type="text"
-                        value={item.label}
+                        value={item.label || item.name || ''}
                         onChange={(e) => {
-                          const next = [...headerFooter.navItems]
-                          next[idx] = { ...item, label: e.target.value }
+                          const current = (headerFooter.navItems && headerFooter.navItems.length > 0)
+                            ? headerFooter.navItems
+                            : (headerFooter.nav_links || [])
+                          const next = [...current]
+                          next[idx] = { ...item, label: e.target.value, name: e.target.value }
                           setSiteSettings({
                             ...siteSettings,
-                            header_footer: { ...headerFooter, navItems: next },
+                            header_footer: { ...headerFooter, navItems: next, nav_links: next },
                           })
                         }}
                         className="border border-[#3e4a28]/25 rounded px-2.5 py-1 text-xs font-bold w-44"
@@ -1377,13 +1384,16 @@ export default function App() {
                       />
                       <input
                         type="text"
-                        value={item.path}
+                        value={item.path || item.url || ''}
                         onChange={(e) => {
-                          const next = [...headerFooter.navItems]
-                          next[idx] = { ...item, path: e.target.value }
+                          const current = (headerFooter.navItems && headerFooter.navItems.length > 0)
+                            ? headerFooter.navItems
+                            : (headerFooter.nav_links || [])
+                          const next = [...current]
+                          next[idx] = { ...item, path: e.target.value, url: e.target.value }
                           setSiteSettings({
                             ...siteSettings,
-                            header_footer: { ...headerFooter, navItems: next },
+                            header_footer: { ...headerFooter, navItems: next, nav_links: next },
                           })
                         }}
                         className="border border-[#3e4a28]/25 rounded px-2.5 py-1 text-xs flex-1"
@@ -1394,11 +1404,14 @@ export default function App() {
                           type="checkbox"
                           checked={item.visible !== false}
                           onChange={(e) => {
-                            const next = [...headerFooter.navItems]
+                            const current = (headerFooter.navItems && headerFooter.navItems.length > 0)
+                              ? headerFooter.navItems
+                              : (headerFooter.nav_links || [])
+                            const next = [...current]
                             next[idx] = { ...item, visible: e.target.checked }
                             setSiteSettings({
                               ...siteSettings,
-                              header_footer: { ...headerFooter, navItems: next },
+                              header_footer: { ...headerFooter, navItems: next, nav_links: next },
                             })
                           }}
                         />
@@ -1406,10 +1419,13 @@ export default function App() {
                       </label>
                       <button
                         onClick={() => {
-                          const next = headerFooter.navItems.filter((_: any, i: number) => i !== idx)
+                          const current = (headerFooter.navItems && headerFooter.navItems.length > 0)
+                            ? headerFooter.navItems
+                            : (headerFooter.nav_links || [])
+                          const next = current.filter((_: any, i: number) => i !== idx)
                           setSiteSettings({
                             ...siteSettings,
-                            header_footer: { ...headerFooter, navItems: next },
+                            header_footer: { ...headerFooter, navItems: next, nav_links: next },
                           })
                         }}
                         className="text-red-600 hover:bg-red-50 p-1 rounded"
@@ -1545,19 +1561,21 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-heading text-lg uppercase font-bold text-[#3e4a28]">
-                      Footer Quick Links ({(headerFooter.quickLinks || []).length})
+                      Footer Quick Links ({((headerFooter.quickLinks && headerFooter.quickLinks.length > 0) ? headerFooter.quickLinks : (headerFooter.quick_links || [])).length})
                     </h3>
                     <p className="text-xs text-[#3e4a28]/70">
-                      Configure navigation links shown under "Quick Links" in the website footer.
+                      Configure legal and support navigation links shown under "Quick Links" in the website footer.
                     </p>
                   </div>
                   <button
                     onClick={() => {
-                      const current = headerFooter.quickLinks || []
-                      const next = [...current, { title: 'New Link', url: '/' }]
+                      const current = (headerFooter.quickLinks && headerFooter.quickLinks.length > 0)
+                        ? headerFooter.quickLinks
+                        : (headerFooter.quick_links || [])
+                      const next = [...current, { label: 'New Link', title: 'New Link', path: '/', url: '/' }]
                       setSiteSettings({
                         ...siteSettings,
-                        header_footer: { ...headerFooter, quickLinks: next },
+                        header_footer: { ...headerFooter, quickLinks: next, quick_links: next },
                       })
                     }}
                     className="inline-flex items-center gap-1.5 bg-[#3e4a28] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg hover:bg-[#2b341c] transition"
@@ -1567,34 +1585,43 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
-                  {(headerFooter.quickLinks || []).map((link: any, idx: number) => (
+                  {((headerFooter.quickLinks && headerFooter.quickLinks.length > 0)
+                    ? headerFooter.quickLinks
+                    : (headerFooter.quick_links || [])
+                  ).map((link: any, idx: number) => (
                     <div
                       key={idx}
                       className="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-[#3e4a28]/20"
                     >
                       <input
                         type="text"
-                        value={link.title || ''}
+                        value={link.label || link.title || ''}
                         onChange={(e) => {
-                          const next = [...headerFooter.quickLinks]
-                          next[idx] = { ...link, title: e.target.value }
+                          const current = (headerFooter.quickLinks && headerFooter.quickLinks.length > 0)
+                            ? headerFooter.quickLinks
+                            : (headerFooter.quick_links || [])
+                          const next = [...current]
+                          next[idx] = { ...link, label: e.target.value, title: e.target.value }
                           setSiteSettings({
                             ...siteSettings,
-                            header_footer: { ...headerFooter, quickLinks: next },
+                            header_footer: { ...headerFooter, quickLinks: next, quick_links: next },
                           })
                         }}
                         placeholder="Link Label"
-                        className="flex-1 border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs"
+                        className="flex-1 border border-[#3e4a28]/20 rounded px-2.5 py-1 text-xs font-bold"
                       />
                       <input
                         type="text"
-                        value={link.url || ''}
+                        value={link.path || link.url || ''}
                         onChange={(e) => {
-                          const next = [...headerFooter.quickLinks]
-                          next[idx] = { ...link, url: e.target.value }
+                          const current = (headerFooter.quickLinks && headerFooter.quickLinks.length > 0)
+                            ? headerFooter.quickLinks
+                            : (headerFooter.quick_links || [])
+                          const next = [...current]
+                          next[idx] = { ...link, path: e.target.value, url: e.target.value }
                           setSiteSettings({
                             ...siteSettings,
-                            header_footer: { ...headerFooter, quickLinks: next },
+                            header_footer: { ...headerFooter, quickLinks: next, quick_links: next },
                           })
                         }}
                         placeholder="/path or https://..."
@@ -1602,10 +1629,13 @@ export default function App() {
                       />
                       <button
                         onClick={() => {
-                          const next = headerFooter.quickLinks.filter((_: any, i: number) => i !== idx)
+                          const current = (headerFooter.quickLinks && headerFooter.quickLinks.length > 0)
+                            ? headerFooter.quickLinks
+                            : (headerFooter.quick_links || [])
+                          const next = current.filter((_: any, i: number) => i !== idx)
                           setSiteSettings({
                             ...siteSettings,
-                            header_footer: { ...headerFooter, quickLinks: next },
+                            header_footer: { ...headerFooter, quickLinks: next, quick_links: next },
                           })
                         }}
                         className="text-red-600 hover:bg-red-50 p-1.5 rounded transition"
