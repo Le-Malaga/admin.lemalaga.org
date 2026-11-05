@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { supabase, compressAndUploadImage, EXISTING_REPO_IMAGES } from './lib/supabase'
+import {
+  supabase,
+  compressAndUploadImage,
+  EXISTING_REPO_IMAGES,
+  toVideoEmbedUrl,
+} from './lib/supabase'
 import { MarkdownEditor } from './components/MarkdownEditor'
 import {
   LayoutTemplate,
@@ -22,14 +27,20 @@ import {
   Lock,
   Sparkles,
   Image as ImageIcon,
+  History,
+  Camera,
+  RotateCcw,
+  Check,
+  X,
 } from 'lucide-react'
 
 type AdminRole = 'super_admin' | 'content_editor' | 'carer_moderator'
 
 interface AdminUser {
-  id: string
+  id?: string
   email: string
   full_name: string | null
+  avatar_url?: string | null
   role: AdminRole
   is_active: boolean
   created_at: string
@@ -45,6 +56,23 @@ export default function App() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  // Profile Customization State
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileName, setProfileName] = useState('')
+  const [profileAvatar, setProfileAvatar] = useState('')
+  const [savingProfile, setSavingProfile] = useState(false)
+
+  // Content Versioning / Revision History State
+  const [showRevisionsModal, setShowRevisionsModal] = useState(false)
+  const [revisionsLoading, setRevisionsLoading] = useState(false)
+  const [revisionsList, setRevisionsList] = useState<any[]>([])
+  const [selectedRevision, setSelectedRevision] = useState<any | null>(null)
+  const [revisionsTarget, setRevisionsTarget] = useState<{
+    table: string
+    recordId: string
+    label: string
+  } | null>(null)
 
   // CMS State
   const [siteSettings, setSiteSettings] = useState<Record<string, any>>({})
@@ -70,7 +98,7 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session?.user?.email) {
-        verifyInvitedAdmin(session.user.email)
+        verifyInvitedAdmin(session.user.email, session.user.user_metadata)
       } else {
         setAuthLoading(false)
       }
@@ -81,7 +109,7 @@ export default function App() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session?.user?.email) {
-        verifyInvitedAdmin(session.user.email)
+        verifyInvitedAdmin(session.user.email, session.user.user_metadata)
       } else {
         setAdminUser(null)
         setAuthLoading(false)
@@ -91,7 +119,7 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const verifyInvitedAdmin = async (email: string) => {
+  const verifyInvitedAdmin = async (email: string, userMetadata?: any) => {
     setAuthLoading(true)
     const { data, error } = await supabase
       .from('admin_users')
@@ -105,9 +133,123 @@ export default function App() {
       setAuthLoading(false)
       return
     }
-    setAdminUser(data as AdminUser)
+
+    let current = data as AdminUser
+    const googleName = userMetadata?.full_name || userMetadata?.name
+    const googlePhoto = userMetadata?.avatar_url || userMetadata?.picture
+
+    // Auto-sync Google Profile info if name or photo isn't already customized
+    if ((!current.full_name && googleName) || (!current.avatar_url && googlePhoto)) {
+      const updates: any = {}
+      if (!current.full_name && googleName) updates.full_name = googleName
+      if (!current.avatar_url && googlePhoto) updates.avatar_url = googlePhoto
+
+      const { data: updated } = await supabase
+        .from('admin_users')
+        .update(updates)
+        .eq('email', current.email)
+        .select()
+        .single()
+
+      if (updated) current = updated as AdminUser
+    }
+
+    setAdminUser(current)
+    setProfileName(current.full_name || '')
+    setProfileAvatar(current.avatar_url || '')
     await loadAllCmsData()
     setAuthLoading(false)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!adminUser) return
+    setSavingProfile(true)
+    const { data, error } = await supabase
+      .from('admin_users')
+      .update({
+        full_name: profileName.trim(),
+        avatar_url: profileAvatar.trim(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('email', adminUser.email)
+      .select()
+      .single()
+
+    setSavingProfile(false)
+    if (error) {
+      showToast('error', `Failed to update profile: ${error.message}`)
+    } else {
+      setAdminUser(data as AdminUser)
+      setShowProfileModal(false)
+      showToast('success', 'Profile and photo updated successfully!')
+      loadAllCmsData()
+    }
+  }
+
+  const openRevisions = async (table: string, recordId: string, label: string) => {
+    setRevisionsTarget({ table, recordId, label })
+    setShowRevisionsModal(true)
+    setRevisionsLoading(true)
+    setSelectedRevision(null)
+
+    const { data, error } = await supabase
+      .from('content_versions')
+      .select('*')
+      .eq('table_name', table)
+      .eq('record_id', recordId)
+      .order('created_at', { ascending: false })
+      .limit(30)
+
+    setRevisionsLoading(false)
+    if (error) {
+      showToast('error', `Could not load revisions: ${error.message}`)
+    } else {
+      setRevisionsList(data || [])
+    }
+  }
+
+  const handleRestoreRevision = (rev: any) => {
+    if (!rev?.snapshot) return
+
+    if (rev.table_name === 'site_pages') {
+      const snap = rev.snapshot
+      setPages(
+        pages.map((p) =>
+          p.slug === snap.slug
+            ? {
+                ...p,
+                title: snap.title,
+                hero_title: snap.hero_title,
+                hero_subtitle: snap.hero_subtitle,
+                hero_badge: snap.hero_badge,
+                hero_image_url: snap.hero_image_url,
+                content_markdown: snap.content_markdown,
+                content_blocks: snap.content_blocks,
+              }
+            : p
+        )
+      )
+      showToast(
+        'success',
+        `Restored "${snap.title || snap.slug}" from ${new Date(
+          rev.created_at
+        ).toLocaleTimeString()}! Click 'Save' to publish it.`
+      )
+      setShowRevisionsModal(false)
+    } else if (rev.table_name === 'site_settings') {
+      const snap = rev.snapshot
+      setSiteSettings({
+        ...siteSettings,
+        [snap.key]: snap.value,
+      })
+      showToast(
+        'success',
+        `Restored setting "${snap.key}" from ${new Date(
+          rev.created_at
+        ).toLocaleTimeString()}! Click 'Publish' to apply.`
+      )
+      setShowRevisionsModal(false)
+    }
   }
 
   const loadAllCmsData = async () => {
@@ -599,6 +741,35 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Admin Profile Trigger */}
+            <button
+              onClick={() => {
+                setProfileName(adminUser.full_name || '')
+                setProfileAvatar(adminUser.avatar_url || '')
+                setShowProfileModal(true)
+              }}
+              className="flex items-center gap-2.5 bg-[#faf9f4]/10 hover:bg-[#faf9f4]/20 px-3 py-1.5 rounded-xl transition text-left border border-white/10"
+              title="Click to edit your profile name or photo"
+            >
+              {adminUser.avatar_url ? (
+                <img
+                  src={adminUser.avatar_url}
+                  alt={adminUser.full_name || adminUser.email}
+                  className="w-8 h-8 rounded-full object-cover border-2 border-[#d95a2b]"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#d95a2b] text-white flex items-center justify-center font-bold text-xs uppercase">
+                  {(adminUser.full_name || adminUser.email).substring(0, 2)}
+                </div>
+              )}
+              <div className="hidden sm:block">
+                <div className="text-xs font-bold leading-tight flex items-center gap-1 text-white">
+                  {adminUser.full_name || 'My Profile'} <Camera className="w-3 h-3 text-[#d95a2b]" />
+                </div>
+                <div className="text-[10px] text-[#faf9f4]/70">Edit Photo & Name</div>
+              </div>
+            </button>
+
             <a
               href="https://www.lemalaga.org"
               target="_blank"
@@ -709,13 +880,24 @@ export default function App() {
                     public pages.
                   </p>
                 </div>
-                <button
-                  onClick={() => saveSetting('header_footer', headerFooter)}
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 bg-[#d95a2b] hover:bg-[#b8461d] text-white font-heading uppercase font-bold tracking-wider px-5 py-2.5 rounded-xl shadow transition"
-                >
-                  <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Publish Header & Footer'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openRevisions('site_settings', 'header_footer', 'Global Header & Footer')
+                    }
+                    className="inline-flex items-center gap-1.5 bg-white hover:bg-gray-100 text-[#3e4a28] border border-[#3e4a28]/30 font-heading uppercase font-bold tracking-wider px-4 py-2.5 rounded-xl shadow-sm transition text-xs"
+                  >
+                    <History className="w-4 h-4 text-[#d95a2b]" /> Revisions
+                  </button>
+                  <button
+                    onClick={() => saveSetting('header_footer', headerFooter)}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 bg-[#d95a2b] hover:bg-[#b8461d] text-white font-heading uppercase font-bold tracking-wider px-5 py-2.5 rounded-xl shadow transition"
+                  >
+                    <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Publish Header & Footer'}
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1107,13 +1289,28 @@ export default function App() {
                     blocks.
                   </p>
                 </div>
-                <button
-                  onClick={() => savePage(selectedPage)}
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 bg-[#d95a2b] hover:bg-[#b8461d] text-white font-heading uppercase font-bold tracking-wider px-5 py-2.5 rounded-xl shadow transition"
-                >
-                  <Save className="w-4 h-4" /> {saving ? 'Saving...' : `Save "${selectedPage.slug}"`}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openRevisions(
+                        'site_pages',
+                        selectedPage.slug,
+                        `Page: ${selectedPage.title || selectedPage.slug}`
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 bg-white hover:bg-gray-100 text-[#3e4a28] border border-[#3e4a28]/30 font-heading uppercase font-bold tracking-wider px-4 py-2.5 rounded-xl shadow-sm transition text-xs"
+                  >
+                    <History className="w-4 h-4 text-[#d95a2b]" /> Revisions
+                  </button>
+                  <button
+                    onClick={() => savePage(selectedPage)}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 bg-[#d95a2b] hover:bg-[#b8461d] text-white font-heading uppercase font-bold tracking-wider px-5 py-2.5 rounded-xl shadow transition"
+                  >
+                    <Save className="w-4 h-4" /> {saving ? 'Saving...' : `Save "${selectedPage.slug}"`}
+                  </button>
+                </div>
               </div>
 
               {/* Page Selector Pills */}
@@ -1442,15 +1639,21 @@ export default function App() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-1">
-                            Media URL (Image or Video URL)
+                            {blk.type === 'video'
+                              ? 'YouTube / Vimeo Video URL'
+                              : 'Media URL (Image / Polaroid)'}
                           </label>
                           <div className="flex gap-2">
                             <input
                               type="text"
                               value={blk.mediaUrl || ''}
                               onChange={(e) => {
+                                const val =
+                                  blk.type === 'video'
+                                    ? toVideoEmbedUrl(e.target.value)
+                                    : e.target.value
                                 const next = [...selectedPage.content_blocks]
-                                next[idx] = { ...blk, mediaUrl: e.target.value }
+                                next[idx] = { ...blk, mediaUrl: val }
                                 setPages(
                                   pages.map((p) =>
                                     p.slug === selectedPage.slug
@@ -1459,30 +1662,52 @@ export default function App() {
                                   )
                                 )
                               }}
-                              className="flex-1 border border-[#3e4a28]/25 rounded px-2.5 py-1.5 text-xs"
+                              placeholder={
+                                blk.type === 'video'
+                                  ? 'https://www.youtube.com/watch?v=... or https://youtu.be/...'
+                                  : 'https://...'
+                              }
+                              className="flex-1 border border-[#3e4a28]/25 rounded px-2.5 py-1.5 text-xs font-mono"
                             />
-                            <label className="cursor-pointer inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold px-2.5 py-1.5 rounded">
-                              <Upload className="w-3.5 h-3.5" />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) =>
-                                  handleFileUpload(e, (url) => {
-                                    const next = [...selectedPage.content_blocks]
-                                    next[idx] = { ...blk, mediaUrl: url }
-                                    setPages(
-                                      pages.map((p) =>
-                                        p.slug === selectedPage.slug
-                                          ? { ...p, content_blocks: next }
-                                          : p
+                            {blk.type === 'image' && (
+                              <label className="cursor-pointer inline-flex items-center gap-1 bg-[#3e4a28] text-white text-xs font-bold px-2.5 py-1.5 rounded hover:bg-[#2c351b] transition">
+                                <Upload className="w-3.5 h-3.5" />
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    handleFileUpload(e, (url) => {
+                                      const next = [...selectedPage.content_blocks]
+                                      next[idx] = { ...blk, mediaUrl: url }
+                                      setPages(
+                                        pages.map((p) =>
+                                          p.slug === selectedPage.slug
+                                            ? { ...p, content_blocks: next }
+                                            : p
+                                        )
                                       )
-                                    )
-                                  })
-                                }
-                              />
-                            </label>
+                                    })
+                                  }
+                                />
+                              </label>
+                            )}
                           </div>
+                          {blk.type === 'video' && (
+                            <p className="text-[10px] text-[#3e4a28]/70 mt-1">
+                              Paste any standard YouTube or Vimeo link. Automatically converted to a clean embed.
+                            </p>
+                          )}
+                          {blk.type === 'video' && blk.mediaUrl && (
+                            <div className="mt-2 rounded-lg overflow-hidden border border-[#3e4a28]/20 aspect-video max-w-sm bg-black shadow-sm">
+                              <iframe
+                                src={toVideoEmbedUrl(blk.mediaUrl)}
+                                className="w-full h-full"
+                                title="Video Preview"
+                                allowFullScreen
+                              />
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-[11px] font-bold uppercase text-[#3e4a28]/70 mb-1">
@@ -3451,6 +3676,243 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* MODAL: ADMIN USER PROFILE */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-[#faf9f4] border-2 border-[#3e4a28] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-[#3e4a28]/15 pb-3">
+              <div>
+                <h3 className="font-heading text-xl uppercase font-bold text-[#3e4a28]">
+                  Admin Profile
+                </h3>
+                <p className="text-xs text-[#3e4a28]/70">
+                  Manage your display name and profile picture.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="text-gray-400 hover:text-gray-700 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Photo Preview & Upload Controls */}
+              <div className="flex items-center gap-4">
+                {profileAvatar ? (
+                  <img
+                    src={profileAvatar}
+                    alt={profileName || 'Admin'}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-[#d95a2b] shadow-md bg-white"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-[#3e4a28] text-white flex items-center justify-center font-bold text-xl uppercase shadow-md">
+                    {(profileName || adminUser?.email || 'A').substring(0, 2)}
+                  </div>
+                )}
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex flex-wrap gap-2">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 bg-[#3e4a28] hover:bg-[#2c351b] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg shadow-sm transition">
+                      <Camera className="w-3.5 h-3.5" /> Upload Photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFileUpload(e, (url) => setProfileAvatar(url))}
+                      />
+                    </label>
+                    {session?.user?.user_metadata?.avatar_url && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProfileAvatar(session.user.user_metadata.avatar_url)
+                        }
+                        className="inline-flex items-center gap-1 bg-white hover:bg-gray-100 text-[#3e4a28] border border-[#3e4a28]/25 text-xs font-bold uppercase px-2.5 py-1.5 rounded-lg shadow-xs transition"
+                        title="Sync picture from Google account"
+                      >
+                        Use Google Photo
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-[#3e4a28]/70">
+                    Automatically compressed to WebP and saved securely.
+                  </p>
+                </div>
+              </div>
+
+              {/* Display Name Input */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#3e4a28] mb-1">
+                  Full Display Name
+                </label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  placeholder="e.g. Elijah Mondero"
+                  className="w-full border border-[#3e4a28]/30 rounded-lg px-3 py-2 text-sm bg-white font-medium"
+                />
+              </div>
+
+              {/* Read-Only Account Details */}
+              <div className="bg-[#3e4a28]/5 border border-[#3e4a28]/15 rounded-xl p-3 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[#3e4a28]/70 font-medium">Google Account Email:</span>
+                  <span className="font-bold text-[#3e4a28]">{adminUser?.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#3e4a28]/70 font-medium">Role:</span>
+                  <span className="font-bold text-[#d95a2b] uppercase">
+                    {adminUser?.role.replace('_', ' ')}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#3e4a28]/70 font-medium">Status:</span>
+                  <span className="font-bold text-green-700 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Active Authorized Admin
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#3e4a28]/15">
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold uppercase text-gray-600 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="inline-flex items-center gap-1.5 bg-[#d95a2b] hover:bg-[#b8461d] text-white font-heading uppercase font-bold text-xs px-5 py-2.5 rounded-xl shadow transition"
+              >
+                <Save className="w-3.5 h-3.5" />
+                {savingProfile ? 'Saving...' : 'Save Profile'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CONTENT REVISION HISTORY & AUDIT TRAIL */}
+      {showRevisionsModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-[#faf9f4] border-2 border-[#3e4a28] rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-[#3e4a28]/15 pb-3">
+              <div>
+                <h3 className="font-heading text-xl uppercase font-bold text-[#3e4a28] flex items-center gap-2">
+                  <History className="w-5 h-5 text-[#d95a2b]" />
+                  Revision History & Audit Trail
+                </h3>
+                <p className="text-xs text-[#3e4a28]/70">
+                  {revisionsTarget?.label || 'Target Content'} • Point-in-time snapshots
+                </p>
+              </div>
+              <button
+                onClick={() => setShowRevisionsModal(false)}
+                className="text-gray-400 hover:text-gray-700 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {revisionsLoading ? (
+                <div className="py-12 text-center text-sm text-[#3e4a28]/70">
+                  Loading past revisions...
+                </div>
+              ) : revisionsList.length === 0 ? (
+                <div className="py-12 text-center space-y-2">
+                  <History className="w-8 h-8 text-gray-300 mx-auto" />
+                  <p className="text-sm font-bold text-[#3e4a28]">No prior revisions recorded yet</p>
+                  <p className="text-xs text-[#3e4a28]/70 max-w-sm mx-auto">
+                    Revisions are captured automatically in PostgreSQL every time you edit and save
+                    this content.
+                  </p>
+                </div>
+              ) : (
+                revisionsList.map((rev: any, idx: number) => {
+                  const revDate = new Date(rev.created_at)
+                  const isSelected = selectedRevision?.id === rev.id
+                  return (
+                    <div
+                      key={rev.id || idx}
+                      className="bg-white border border-[#3e4a28]/20 rounded-xl p-4 shadow-xs space-y-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-[#3e4a28]">
+                              Revision #{revisionsList.length - idx}
+                            </span>
+                            <span className="text-xs text-gray-500 font-mono">
+                              {revDate.toLocaleDateString()} at {revDate.toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#3e4a28]/70">
+                            Saved by: <span className="font-bold">{rev.changed_by || 'Unknown'}</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRevision(isSelected ? null : rev)}
+                            className="text-xs font-bold text-[#3e4a28] hover:underline px-2.5 py-1"
+                          >
+                            {isSelected ? 'Hide Details' : 'View Snapshot'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  `Restore revision from ${revDate.toLocaleString()}? This will replace the editor state.`
+                                )
+                              ) {
+                                handleRestoreRevision(rev)
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 bg-[#3e4a28] hover:bg-[#2c351b] text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg shadow-xs transition"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" /> Restore
+                          </button>
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <div className="pt-2 border-t border-gray-100">
+                          <div className="text-[10px] font-bold uppercase text-gray-500 mb-1">
+                            Snapshot Payload:
+                          </div>
+                          <pre className="bg-[#fcfaf4] p-3 rounded-lg text-[11px] font-mono text-gray-700 max-h-48 overflow-y-auto border border-gray-200">
+                            {JSON.stringify(rev.snapshot, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-[#3e4a28]/15 text-xs text-[#3e4a28]/70">
+              <span>Automatic PostgreSQL audit logging enabled</span>
+              <button
+                type="button"
+                onClick={() => setShowRevisionsModal(false)}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-1.5 rounded-lg text-xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

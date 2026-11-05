@@ -68,3 +68,45 @@ export async function compressAndUploadImage(file: File): Promise<string> {
   const { data } = supabase.storage.from('site-media').getPublicUrl(filePath)
   return data.publicUrl
 }
+
+/**
+ * Normalizes any YouTube URL (watch, short, mobile, embed) or Vimeo URL to a privacy-friendly embed URL.
+ * e.g. https://www.youtube.com/watch?v=xyz -> https://www.youtube-nocookie.com/embed/xyz
+ * e.g. https://youtu.be/xyz -> https://www.youtube-nocookie.com/embed/xyz
+ * e.g. https://www.youtube.com/shorts/xyz -> https://www.youtube-nocookie.com/embed/xyz
+ */
+export function toVideoEmbedUrl(url: string): string {
+  if (!url || typeof url !== 'string') return ''
+  const trimmed = url.trim()
+
+  // YouTube Shorts: youtube.com/shorts/{id}
+  const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/)
+  if (shortsMatch) {
+    return `https://www.youtube-nocookie.com/embed/${shortsMatch[1]}`
+  }
+
+  // YouTube Watch: youtube.com/watch?v={id}
+  const watchMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]+)/)
+  if (watchMatch) {
+    return `https://www.youtube-nocookie.com/embed/${watchMatch[1]}`
+  }
+
+  // YouTube Shortlink: youtu.be/{id}
+  const shortlinkMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)
+  if (shortlinkMatch) {
+    return `https://www.youtube-nocookie.com/embed/${shortlinkMatch[1]}`
+  }
+
+  // YouTube Embed: youtube.com/embed/{id} -> convert to privacy-friendly nocookie
+  if (trimmed.includes('youtube.com/embed/')) {
+    return trimmed.replace('youtube.com/embed/', 'youtube-nocookie.com/embed/')
+  }
+
+  // Vimeo: vimeo.com/{id}
+  const vimeoMatch = trimmed.match(/vimeo\.com\/(\d+)/)
+  if (vimeoMatch && !trimmed.includes('player.vimeo.com')) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  }
+
+  return trimmed
+}
