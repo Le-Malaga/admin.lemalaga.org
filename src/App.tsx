@@ -252,6 +252,17 @@ export default function App() {
     }
   }
 
+  const parseMarkdownSections = (md?: string): { title: string; text: string }[] => {
+    if (!md) return []
+    const parts = md.split(/^##\s+/m).filter(Boolean)
+    return parts.map((part) => {
+      const lines = part.trim().split('\n')
+      const rawTitle = (lines.shift() || 'Their Journey').replace(/^\d+\.\s*/, '').trim()
+      const text = lines.join('\n').trim()
+      return { title: rawTitle, text }
+    })
+  }
+
   const loadAllCmsData = async () => {
     const [settingsRes, pagesRes, teamRes, storiesRes, eventsRes, highlightsRes, resourcesRes, adminsRes] =
       await Promise.all([
@@ -273,16 +284,69 @@ export default function App() {
       setSiteSettings(map)
     }
     if (pagesRes.data) setPages(pagesRes.data)
-    if (teamRes.data) setTeam(teamRes.data)
+    if (teamRes.data) {
+      setTeam(
+        teamRes.data.map((m: any) => ({
+          ...m,
+          role: m.role || m.role_title || '',
+          image_url: m.image_url || (m.photo_urls && m.photo_urls[0]) || '/images/flory1.jpg',
+          bio: m.bio || (Array.isArray(m.bio_paragraphs) ? m.bio_paragraphs.join('\n\n') : ''),
+          sort_order: m.sort_order ?? m.display_order ?? 1,
+          is_published: m.is_published ?? m.is_active ?? true,
+        }))
+      )
+    }
     if (storiesRes.data) {
-      setStories(storiesRes.data)
-      if (!selectedStoryId && storiesRes.data.length > 0) {
-        setSelectedStoryId(storiesRes.data[0].id)
+      const mappedStories = storiesRes.data.map((s: any) => {
+        let fullStory = s.full_story || ''
+        if (!fullStory && Array.isArray(s.timeline) && s.timeline.length > 0) {
+          fullStory = s.timeline
+            .map((step: any) => `## ${step.title || 'SECTION'}\n\n${step.text || ''}`)
+            .join('\n\n')
+        }
+        return {
+          ...s,
+          title: s.title || s.name || 'Carer',
+          subtitle: s.subtitle || s.quote || '',
+          cover_image_url: s.cover_image_url || s.image || '/images/Melissa_1.png',
+          publish_scope: s.publish_scope || s.visibility_scope || 'public_portal',
+          sort_order: s.sort_order ?? s.display_order ?? 1,
+          featured: s.featured ?? s.is_featured_home ?? true,
+          excerpt: s.excerpt || s.subquote || '',
+          full_story: fullStory,
+        }
+      })
+      setStories(mappedStories)
+      if (!selectedStoryId && mappedStories.length > 0) {
+        setSelectedStoryId(mappedStories[0].id)
       }
     }
-    if (eventsRes.data) setEvents(eventsRes.data)
+    if (eventsRes.data) {
+      setEvents(
+        eventsRes.data.map((e: any) => ({
+          ...e,
+          date_text: e.date_text || (e.date_day ? `${e.date_day} ${e.date_month}` : 'TBA'),
+          time_text: e.time_text || '10:00 AM - 12:00 PM',
+          cta_label: e.cta_label || 'RSVP',
+          cta_url: e.cta_url || e.rsvp_url || '/get-involved',
+          sort_order: e.sort_order ?? e.display_order ?? 1,
+          is_published: e.is_published ?? e.is_active ?? true,
+        }))
+      )
+    }
     if (highlightsRes.data) setHighlights(highlightsRes.data)
-    if (resourcesRes.data) setResources(resourcesRes.data)
+    if (resourcesRes.data) {
+      setResources(
+        resourcesRes.data.map((r: any) => ({
+          ...r,
+          link_url: r.link_url || r.url || '#',
+          link_label: r.link_label || 'VIEW RESOURCE',
+          category: r.category || (r.section === 'reading' ? 'Reading' : 'System Guide'),
+          sort_order: r.sort_order ?? r.display_order ?? 1,
+          is_published: r.is_published ?? r.is_active ?? true,
+        }))
+      )
+    }
     if (adminsRes.data) setAdminList(adminsRes.data as AdminUser[])
   }
 
@@ -396,9 +460,26 @@ export default function App() {
 
   const saveTeamMember = async (member: any) => {
     setSaving(true)
-    const { error } = await supabase
-      .from('team_members')
-      .upsert({ ...member, updated_at: new Date().toISOString() })
+    const payload = {
+      id: member.id,
+      name: member.name,
+      role: member.role || member.role_title || 'Co-Founder & Carer',
+      role_title: member.role || member.role_title || 'Co-Founder & Carer',
+      image_url: member.image_url || (member.photo_urls && member.photo_urls[0]) || '/images/flory1.jpg',
+      photo_urls: member.image_url ? [member.image_url] : (member.photo_urls || ['/images/flory1.jpg']),
+      bio: member.bio || (Array.isArray(member.bio_paragraphs) ? member.bio_paragraphs.join('\n\n') : ''),
+      bio_paragraphs: typeof member.bio === 'string'
+        ? member.bio.split('\n\n').filter((p: string) => p.trim())
+        : (member.bio_paragraphs || []),
+      sort_order: Number(member.sort_order || member.display_order || 1),
+      display_order: Number(member.sort_order || member.display_order || 1),
+      is_published: member.is_published !== false,
+      is_active: member.is_published !== false,
+      layout_direction: member.layout_direction || 'normal',
+      callout_box: member.callout_box || null,
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('team_members').upsert(payload)
     setSaving(false)
     if (error) showToast('error', error.message)
     else {
@@ -419,13 +500,46 @@ export default function App() {
 
   const saveStory = async (story: any) => {
     setSaving(true)
-    const { error } = await supabase
-      .from('stories')
-      .upsert({ ...story, updated_at: new Date().toISOString() })
+    const parsedSections = parseMarkdownSections(story.full_story || '')
+    const existingTimeline = Array.isArray(story.timeline) ? story.timeline : []
+    const timeline = parsedSections.length > 0
+      ? parsedSections.map((sec, idx) => ({
+          step: idx + 1,
+          title: sec.title,
+          text: sec.text,
+          image: existingTimeline[idx]?.image || (idx === 0 ? (story.cover_image_url || story.image) : undefined),
+          caption: existingTimeline[idx]?.caption || 'Memories...'
+        }))
+      : existingTimeline
+
+    const payload = {
+      id: story.id,
+      name: story.title || story.name || 'Carer',
+      title: story.title || story.name || 'Carer',
+      quote: story.subtitle || story.quote || '',
+      subtitle: story.subtitle || story.quote || '',
+      subquote: story.excerpt || story.subquote || '',
+      excerpt: story.excerpt || story.subquote || '',
+      image: story.cover_image_url || story.image || '/images/Melissa_1.png',
+      cover_image_url: story.cover_image_url || story.image || '/images/Melissa_1.png',
+      visibility_scope: story.publish_scope || story.visibility_scope || 'public_portal',
+      publish_scope: story.publish_scope || story.visibility_scope || 'public_portal',
+      is_featured_home: story.featured ?? story.is_featured_home ?? true,
+      featured: story.featured ?? story.is_featured_home ?? true,
+      display_order: Number(story.sort_order || story.display_order || 1),
+      sort_order: Number(story.sort_order || story.display_order || 1),
+      full_story: story.full_story || '',
+      timeline,
+      location: story.location || 'Aotearoa',
+      category: story.category || 'CARER JOURNEY',
+      at_a_glance: story.at_a_glance || {},
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('stories').upsert(payload)
     setSaving(false)
     if (error) showToast('error', error.message)
     else {
-      showToast('success', `Saved story "${story.title}"!`)
+      showToast('success', `Saved story "${payload.name}"!`)
       loadAllCmsData()
     }
   }
@@ -443,9 +557,27 @@ export default function App() {
 
   const saveEvent = async (ev: any) => {
     setSaving(true)
-    const { error } = await supabase
-      .from('events')
-      .upsert({ ...ev, updated_at: new Date().toISOString() })
+    const parts = (ev.date_text || '').trim().split(' ')
+    const payload = {
+      id: ev.id,
+      title: ev.title,
+      date_text: ev.date_text || (ev.date_day ? `${ev.date_day} ${ev.date_month}` : '14 FEB'),
+      date_day: ev.date_day || parts[0] || '14',
+      date_month: ev.date_month || parts.slice(1).join(' ') || 'FEB',
+      time_text: ev.time_text || '10:00 AM - 12:00 PM',
+      location: ev.location,
+      description: ev.description || '',
+      cta_label: ev.cta_label || 'RSVP',
+      cta_url: ev.cta_url || ev.rsvp_url || '/get-involved',
+      rsvp_url: ev.cta_url || ev.rsvp_url || '/get-involved',
+      sort_order: Number(ev.sort_order || ev.display_order || 1),
+      display_order: Number(ev.sort_order || ev.display_order || 1),
+      is_published: ev.is_published !== false,
+      is_active: ev.is_published !== false,
+      is_featured_home: ev.is_featured_home ?? true,
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('events').upsert(payload)
     setSaving(false)
     if (error) showToast('error', error.message)
     else {
@@ -466,9 +598,22 @@ export default function App() {
 
   const saveHighlight = async (hl: any) => {
     setSaving(true)
-    const { error } = await supabase
-      .from('community_highlights')
-      .upsert({ ...hl, updated_at: new Date().toISOString() })
+    const payload = {
+      id: hl.id,
+      badge_text: hl.badge_text || 'Community Highlight',
+      title: hl.title,
+      paragraphs: Array.isArray(hl.paragraphs)
+        ? hl.paragraphs
+        : (hl.paragraphs ? [hl.paragraphs] : ['Community event in Auckland.']),
+      quote: hl.quote || '',
+      image_url: hl.image_url || '/images/West_Auckland_1.png',
+      display_order: Number(hl.display_order ?? hl.sort_order ?? 1),
+      sort_order: Number(hl.display_order ?? hl.sort_order ?? 1),
+      is_active: hl.is_published !== false,
+      is_published: hl.is_published !== false,
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('community_highlights').upsert(payload)
     setSaving(false)
     if (error) showToast('error', error.message)
     else {
@@ -489,9 +634,27 @@ export default function App() {
 
   const saveResource = async (res: any) => {
     setSaving(true)
-    const { error } = await supabase
-      .from('resources')
-      .upsert({ ...res, updated_at: new Date().toISOString() })
+    const payload = {
+      id: res.id,
+      slug: res.slug || (res.title || 'resource').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      title: res.title,
+      description: res.description || '',
+      category: res.category || (res.section === 'reading' ? 'Reading' : 'System Guide'),
+      section: res.section || (res.category?.toLowerCase().includes('reading') ? 'reading' : 'system'),
+      resource_type: res.resource_type || (res.link_url?.endsWith('.pdf') ? 'pdf' : 'link'),
+      link_url: res.link_url || res.url || '#',
+      url: res.link_url || res.url || '#',
+      link_label: res.link_label || 'VIEW RESOURCE',
+      version_label: res.version_label || 'v1.0',
+      sort_order: Number(res.sort_order || res.display_order || 1),
+      display_order: Number(res.sort_order || res.display_order || 1),
+      is_published: res.is_published !== false,
+      is_active: res.is_published !== false,
+      content_markdown: res.content_markdown || '',
+      content_blocks: res.content_blocks || [],
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('resources').upsert(payload)
     setSaving(false)
     if (error) showToast('error', error.message)
     else {
