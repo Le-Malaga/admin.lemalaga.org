@@ -895,30 +895,43 @@ export default function App() {
     )
   }
 
-  const headerFooter = siteSettings.header_footer || {
-    logoUrl: 'https://www.lemalaga.org/images/logo.png',
-    orgName: 'Le Malaga',
-    headerTagline: 'A safe space for carers to rest, share, and walk together',
-    donateButtonLabel: 'DONATE',
-    donateButtonUrl: '/get-involved',
-    navItems: [],
-    footerDescription: '',
-    contactEmail: 'lemalganz@gmail.com',
-    contactPhone: '027 123 4567',
-    contactLocation: 'Auckland, Aotearoa New Zealand',
+  const rawHf = siteSettings.header_footer || {}
+  const headerFooter = {
+    ...rawHf,
+    logoUrl: rawHf.logoUrl || rawHf.header_logo_url || 'https://www.lemalaga.org/images/logo.png',
+    orgName: rawHf.orgName || rawHf.header_logo_alt || 'Le Malaga',
+    headerTagline: rawHf.headerTagline || rawHf.header_tagline || 'A safe space for carers to rest, share, and walk together',
+    donateButtonLabel: rawHf.donateButtonLabel || rawHf.donate_label || 'DONATE',
+    donateButtonUrl: rawHf.donateButtonUrl || rawHf.donate_url || '/get-involved',
+    contactEmail: rawHf.contactEmail || rawHf.contact_email || 'lemalgajourney@gmail.com',
+    contactPhone: rawHf.contactPhone || rawHf.contact_phone || '021 123 4567',
+    contactLocation: rawHf.contactLocation || rawHf.contact_location || 'Auckland, New Zealand',
     weAcknowledge:
+      rawHf.weAcknowledge ||
+      rawHf.acknowledgement_text ||
+      rawHf.footerDescription ||
       'We acknowledge the dedication, resilience, and profound love of carers who tirelessly look after their loved ones every day. We commit to honoring your journey, upholding your dignity, and walking beside you with respect, empathy, and cultural care.',
-    instagramUrl: 'https://www.instagram.com/lemalaga_/',
-    copyrightText: '© 2026 LE MALAGA. ALL RIGHTS RESERVED.',
-    footerLinks: [],
-    quickLinks: [
-      { title: 'About Us', url: '/about' },
-      { title: 'Our Stories', url: '/stories' },
-      { title: 'Sunday Sessions', url: '/sunday-sessions' },
-      { title: 'Resources', url: '/resources' },
-      { title: 'Carer Support', url: '/support' },
-      { title: 'Get Involved', url: '/get-involved' },
-    ],
+    instagramUrl: rawHf.instagramUrl || rawHf.instagram_url || 'https://www.instagram.com/lemalaga_/',
+    copyrightText: rawHf.copyrightText || rawHf.copyright_text || '© 2026 LE MALAGA. ALL RIGHTS RESERVED.',
+    quickLinks: (Array.isArray(rawHf.quickLinks) && rawHf.quickLinks.length > 0)
+      ? rawHf.quickLinks
+      : (Array.isArray(rawHf.quick_links) && rawHf.quick_links.length > 0)
+      ? rawHf.quick_links
+      : [
+          { title: 'About Us', url: '/about' },
+          { title: 'Our Stories', url: '/stories' },
+          { title: 'Sunday Sessions', url: '/sunday-sessions' },
+          { title: 'Resources', url: '/resources' },
+          { title: 'Carer Support', url: '/support' },
+          { title: 'Get Involved', url: '/get-involved' },
+        ],
+    quick_links: (Array.isArray(rawHf.quick_links) && rawHf.quick_links.length > 0)
+      ? rawHf.quick_links
+      : (Array.isArray(rawHf.quickLinks) && rawHf.quickLinks.length > 0)
+      ? rawHf.quickLinks
+      : [],
+    navItems: rawHf.navItems || rawHf.nav_links || [],
+    nav_links: rawHf.nav_links || rawHf.navItems || [],
   }
 
   const homeFeatures = siteSettings.home_features || []
@@ -1922,6 +1935,26 @@ export default function App() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Bottom Prominent Save Bar */}
+              <div className="pt-6 border-t-2 border-[#3e4a28]/15 flex flex-wrap items-center justify-between gap-4 bg-white/70 p-4 rounded-xl border border-[#3e4a28]/10 shadow-sm">
+                <div>
+                  <h4 className="font-heading font-bold text-sm uppercase text-[#3e4a28]">
+                    Ready to publish site settings?
+                  </h4>
+                  <p className="text-xs text-[#3e4a28]/70">
+                    Saves all updates (logo, favicon, social share image, SEO, and navigation) to the live website.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveSetting('header_footer', headerFooter)}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 bg-[#d95a2b] hover:bg-[#b8461d] text-white font-heading uppercase font-bold tracking-wider px-6 py-3 rounded-xl shadow transition"
+                >
+                  <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Publish Header & Footer'}
+                </button>
               </div>
             </div>
           )}
