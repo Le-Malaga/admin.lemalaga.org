@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   supabase,
   compressAndUploadImage,
@@ -33,6 +33,7 @@ import {
   RotateCcw,
   Check,
   X,
+  Radio,
 } from 'lucide-react'
 
 type AdminRole = 'super_admin' | 'content_editor' | 'carer_moderator'
@@ -45,6 +46,16 @@ interface AdminUser {
   role: AdminRole
   is_active: boolean
   created_at: string
+}
+
+interface AdminPresence {
+  email: string
+  name: string
+  avatar_url?: string
+  activeTab: string
+  pageSlug?: string
+  storyId?: string
+  onlineAt: string
 }
 
 export default function App() {
@@ -90,10 +101,75 @@ export default function App() {
   const [newInviteName, setNewInviteName] = useState('')
   const [newInviteRole, setNewInviteRole] = useState<AdminRole>('content_editor')
 
+  // Realtime Presence State (Supabase Presence WebSockets)
+  const [onlineAdmins, setOnlineAdmins] = useState<AdminPresence[]>([])
+  const [showPresenceDropdown, setShowPresenceDropdown] = useState(false)
+  const presenceChannelRef = useRef<any>(null)
+
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message })
     setTimeout(() => setToast(null), 4000)
   }
+
+  // Supabase Realtime Presence Channel: subscribe and broadcast current admin state
+  useEffect(() => {
+    if (!adminUser) return
+
+    const channel = supabase.channel('admin-presence', {
+      config: {
+        presence: {
+          key: adminUser.email.toLowerCase(),
+        },
+      },
+    })
+
+    presenceChannelRef.current = channel
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState<AdminPresence>()
+        const active: AdminPresence[] = []
+        Object.keys(state).forEach((key) => {
+          const presences = state[key]
+          if (presences && presences.length > 0) {
+            active.push(presences[presences.length - 1] as any)
+          }
+        })
+        setOnlineAdmins(active)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            email: adminUser.email,
+            name: adminUser.full_name || adminUser.email.split('@')[0],
+            avatar_url: adminUser.avatar_url || '',
+            activeTab,
+            pageSlug: activeTab === 'pages' ? selectedPageSlug : undefined,
+            storyId: activeTab === 'stories' ? (selectedStoryId || undefined) : undefined,
+            onlineAt: new Date().toISOString(),
+          })
+        }
+      })
+
+    return () => {
+      channel.unsubscribe()
+      presenceChannelRef.current = null
+    }
+  }, [adminUser?.email])
+
+  // Track active navigation tab, page slug, story ID and profile changes
+  useEffect(() => {
+    if (!presenceChannelRef.current || !adminUser) return
+    presenceChannelRef.current.track({
+      email: adminUser.email,
+      name: adminUser.full_name || adminUser.email.split('@')[0],
+      avatar_url: adminUser.avatar_url || '',
+      activeTab,
+      pageSlug: activeTab === 'pages' ? selectedPageSlug : undefined,
+      storyId: activeTab === 'stories' ? (selectedStoryId || undefined) : undefined,
+      onlineAt: new Date().toISOString(),
+    })
+  }, [activeTab, selectedPageSlug, selectedStoryId, adminUser?.full_name, adminUser?.avatar_url])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -905,6 +981,155 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Live Presence Indicator */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowPresenceDropdown(!showPresenceDropdown)}
+                className="flex items-center gap-2 bg-[#2c351b]/80 hover:bg-[#2c351b] border border-white/15 px-3 py-1.5 rounded-xl transition text-left shadow-inner"
+                title="Click to see online admins and what page they are editing"
+              >
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs font-bold text-white tracking-wide">
+                  {onlineAdmins.length} Online
+                </span>
+                {onlineAdmins.length > 0 && (
+                  <div className="flex items-center -space-x-1.5 ml-1">
+                    {onlineAdmins.slice(0, 4).map((admin) => {
+                      const isMe = admin.email.toLowerCase() === adminUser.email.toLowerCase()
+                      return (
+                        <div
+                          key={admin.email}
+                          className={`w-6 h-6 rounded-full overflow-hidden ring-2 ${
+                            isMe ? 'ring-[#d95a2b]' : 'ring-emerald-500'
+                          }`}
+                        >
+                          {admin.avatar_url ? (
+                            <img
+                              src={admin.avatar_url}
+                              alt={admin.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div
+                              className={`w-full h-full text-white text-[9px] font-bold flex items-center justify-center uppercase ${
+                                isMe ? 'bg-[#d95a2b]' : 'bg-[#3e4a28]'
+                              }`}
+                            >
+                              {(admin.name || admin.email).substring(0, 2)}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {onlineAdmins.length > 4 && (
+                      <div className="w-6 h-6 rounded-full bg-[#d95a2b] text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-emerald-500">
+                        +{onlineAdmins.length - 4}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </button>
+
+              {/* Realtime Presence Dropdown */}
+              {showPresenceDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowPresenceDropdown(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#faf9f4] border-2 border-[#3e4a28] rounded-2xl shadow-2xl p-4 z-50 text-[#3e4a28]">
+                    <div className="flex items-center justify-between border-b border-[#3e4a28]/15 pb-2.5 mb-3">
+                      <div className="flex items-center gap-2">
+                        <Radio className="w-4 h-4 text-emerald-600 animate-pulse" />
+                        <span className="font-heading text-sm uppercase font-extrabold tracking-wider">
+                          Active Admins ({onlineAdmins.length})
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Realtime Sync
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {onlineAdmins.map((admin) => {
+                        const isMe = admin.email.toLowerCase() === adminUser.email.toLowerCase()
+                        const tabLabels: Record<string, string> = {
+                          header_footer: '1. Identity, Favicon & Nav',
+                          pages: admin.pageSlug ? `2. Pages (/${admin.pageSlug})` : '2. Public Pages',
+                          team: '3. Meet the Aiga Team',
+                          stories: admin.storyId ? `4. Stories (${admin.storyId})` : '4. Our Stories',
+                          events: '5. Events & Sunday Sessions',
+                          resources: '6. Carer Resources',
+                          admins: '7. Invite-Only Admins',
+                        }
+                        const currentTabName = tabLabels[admin.activeTab] || admin.activeTab
+
+                        return (
+                          <div
+                            key={admin.email}
+                            className={`p-2.5 rounded-xl border flex items-start gap-3 transition ${
+                              isMe
+                                ? 'bg-[#3e4a28]/5 border-[#3e4a28]/20'
+                                : 'bg-white border-[#3e4a28]/15 shadow-sm'
+                            }`}
+                          >
+                            <div className="relative shrink-0 mt-0.5">
+                              {admin.avatar_url ? (
+                                <img
+                                  src={admin.avatar_url}
+                                  alt={admin.name}
+                                  className="w-8 h-8 rounded-full object-cover border-2 border-[#d95a2b]"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-[#d95a2b] text-white flex items-center justify-center font-bold text-xs uppercase">
+                                  {(admin.name || admin.email).substring(0, 2)}
+                                </div>
+                              )}
+                              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-xs font-bold text-[#3e4a28] truncate">
+                                  {admin.name || admin.email.split('@')[0]}
+                                </span>
+                                {isMe && (
+                                  <span className="text-[9px] bg-[#d95a2b] text-white font-bold px-1.5 py-0.2 rounded-full uppercase shrink-0">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-[#3e4a28]/70 truncate font-mono">
+                                {admin.email}
+                              </div>
+                              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#3e4a28]">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
+                                <span className="font-semibold text-emerald-900">Viewing:</span>
+                                <span className="truncate font-medium">{currentTabName}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className="mt-3 pt-2.5 border-t border-[#3e4a28]/15 text-[10px] text-[#3e4a28]/60 flex items-center justify-between">
+                      <span>Supabase WebSocket Presence</span>
+                      <button
+                        onClick={() => setShowPresenceDropdown(false)}
+                        className="text-[#d95a2b] font-bold hover:underline"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Admin Profile Trigger */}
             <button
               onClick={() => {
@@ -989,18 +1214,47 @@ export default function App() {
             ].map((item) => {
               const Icon = item.icon
               const active = activeTab === item.id
+              const othersInThisTab = onlineAdmins.filter(
+                (a) => a.email.toLowerCase() !== adminUser.email.toLowerCase() && a.activeTab === item.id
+              )
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-left text-sm font-bold transition ${
+                  className={`w-full flex items-center justify-between gap-2 px-3.5 py-3 rounded-xl text-left text-sm font-bold transition ${
                     active
                       ? 'bg-[#d95a2b] text-white shadow-md'
                       : 'text-[#3e4a28] hover:bg-[#3e4a28]/10'
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3 truncate">
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+                  {othersInThisTab.length > 0 && (
+                    <div
+                      className="flex items-center -space-x-1.5 shrink-0"
+                      title={`${othersInThisTab.map((a) => a.name || a.email).join(', ')} currently active here`}
+                    >
+                      {othersInThisTab.slice(0, 3).map((a) => (
+                        <div
+                          key={a.email}
+                          className="w-5 h-5 rounded-full overflow-hidden ring-1 ring-white bg-[#3e4a28] text-white text-[8px] font-bold flex items-center justify-center uppercase shadow"
+                        >
+                          {a.avatar_url ? (
+                            <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (a.name || a.email).substring(0, 2)
+                          )}
+                        </div>
+                      ))}
+                      {othersInThisTab.length > 3 && (
+                        <span className="w-4 h-4 rounded-full bg-amber-500 text-white text-[8px] font-bold flex items-center justify-center">
+                          +{othersInThisTab.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </button>
               )
             })}
@@ -1063,6 +1317,29 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {/* Concurrent Viewers in Tab 1 */}
+              {(() => {
+                const othersInTab1 = onlineAdmins.filter(
+                  (a) =>
+                    a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                    a.activeTab === 'header_footer'
+                )
+                if (othersInTab1.length === 0) return null
+                return (
+                  <div className="bg-amber-100 border-2 border-amber-500 text-amber-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="text-xs">
+                        <strong className="font-bold">
+                          {othersInTab1.map((a) => a.name || a.email).join(', ')}
+                        </strong>{' '}
+                        {othersInTab1.length === 1 ? 'is' : 'are'} also viewing Site Identity & Navigation settings.
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* 1. Header Logo */}
@@ -1688,20 +1965,80 @@ export default function App() {
 
               {/* Page Selector Pills */}
               <div className="flex flex-wrap gap-2">
-                {pages.map((p) => (
-                  <button
-                    key={p.slug}
-                    onClick={() => setSelectedPageSlug(p.slug)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition ${
-                      selectedPage.slug === p.slug
-                        ? 'bg-[#3e4a28] text-white shadow'
-                        : 'bg-white border border-[#3e4a28]/25 text-[#3e4a28] hover:bg-[#3e4a28]/10'
-                    }`}
-                  >
-                    /{p.slug === 'home' ? '' : p.slug}
-                  </button>
-                ))}
+                {pages.map((p) => {
+                  const othersOnThisPage = onlineAdmins.filter(
+                    (a) =>
+                      a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                      a.activeTab === 'pages' &&
+                      a.pageSlug === p.slug
+                  )
+                  return (
+                    <button
+                      key={p.slug}
+                      onClick={() => setSelectedPageSlug(p.slug)}
+                      className={`relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition ${
+                        selectedPage.slug === p.slug
+                          ? 'bg-[#3e4a28] text-white shadow'
+                          : 'bg-white border border-[#3e4a28]/25 text-[#3e4a28] hover:bg-[#3e4a28]/10'
+                      }`}
+                    >
+                      <span>/{p.slug === 'home' ? '' : p.slug}</span>
+                      {othersOnThisPage.length > 0 && (
+                        <span
+                          className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white animate-ping"
+                          title={`${othersOnThisPage.map((a) => a.name || a.email).join(', ')} currently editing this page`}
+                        />
+                      )}
+                    </button>
+                  )
+                })}
               </div>
+
+              {/* Concurrent View / Edit Collision Alert */}
+              {(() => {
+                const othersViewingThisPage = onlineAdmins.filter(
+                  (a) =>
+                    a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                    a.activeTab === 'pages' &&
+                    a.pageSlug === selectedPage.slug
+                )
+                if (othersViewingThisPage.length === 0) return null
+                return (
+                  <div className="bg-amber-100 border-2 border-amber-500 text-amber-950 rounded-xl p-4 flex items-center justify-between gap-3 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                      <div className="text-sm">
+                        <span className="font-extrabold uppercase tracking-wide">
+                          Concurrent Editing Alert:
+                        </span>{' '}
+                        <span className="font-bold">
+                          {othersViewingThisPage.map((a) => a.name || a.email).join(', ')}
+                        </span>{' '}
+                        {othersViewingThisPage.length === 1 ? 'is' : 'are'} currently viewing / editing this{' '}
+                        <span className="font-mono bg-amber-200/80 px-1.5 py-0.5 rounded font-bold">
+                          /{selectedPage.slug}
+                        </span>{' '}
+                        page. Changes saved by either of you will reflect in real-time. Coordinate before saving to prevent overwriting content.
+                      </div>
+                    </div>
+                    <div className="flex items-center -space-x-2 shrink-0">
+                      {othersViewingThisPage.map((a) => (
+                        <div
+                          key={a.email}
+                          title={`${a.name || a.email} is active here`}
+                          className="w-7 h-7 rounded-full bg-amber-500 text-white font-bold text-xs flex items-center justify-center ring-2 ring-white overflow-hidden shadow-sm"
+                        >
+                          {a.avatar_url ? (
+                            <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (a.name || a.email).slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -2762,6 +3099,29 @@ export default function App() {
                 </button>
               </div>
 
+              {/* Concurrent Viewers in Tab 3 */}
+              {(() => {
+                const othersInTab3 = onlineAdmins.filter(
+                  (a) =>
+                    a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                    a.activeTab === 'team'
+                )
+                if (othersInTab3.length === 0) return null
+                return (
+                  <div className="bg-amber-100 border-2 border-amber-500 text-amber-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="text-xs">
+                        <strong className="font-bold">
+                          {othersInTab3.map((a) => a.name || a.email).join(', ')}
+                        </strong>{' '}
+                        {othersInTab3.length === 1 ? 'is' : 'are'} also viewing Meet the Aiga team profiles.
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="space-y-4">
                 {team.map((member, idx) => (
                   <div
@@ -2958,38 +3318,97 @@ export default function App() {
 
               {/* Story Selector Pills */}
               <div className="flex flex-wrap gap-2">
-                {stories.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedStoryId(s.id)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 ${
-                      selectedStory?.id === s.id
-                        ? 'bg-[#d95a2b] text-white shadow'
-                        : 'bg-white border border-[#3e4a28]/25 text-[#3e4a28]'
-                    }`}
-                  >
-                    <span>{s.title}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                        s.publish_scope === 'public_portal'
-                          ? 'bg-green-600 text-white'
-                          : s.publish_scope === 'portal_only'
-                          ? 'bg-amber-600 text-white'
-                          : 'bg-gray-500 text-white'
+                {stories.map((s) => {
+                  const othersOnThisStory = onlineAdmins.filter(
+                    (a) =>
+                      a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                      a.activeTab === 'stories' &&
+                      a.storyId === s.id
+                  )
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedStoryId(s.id)}
+                      className={`relative px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 ${
+                        selectedStory?.id === s.id
+                          ? 'bg-[#d95a2b] text-white shadow'
+                          : 'bg-white border border-[#3e4a28]/25 text-[#3e4a28]'
                       }`}
                     >
-                      {s.publish_scope === 'public_portal'
-                        ? 'PUBLIC'
-                        : s.publish_scope === 'portal_only'
-                        ? 'PORTAL'
-                        : 'DRAFT'}
-                    </span>
-                  </button>
-                ))}
+                      <span>{s.title}</span>
+                      {othersOnThisStory.length > 0 && (
+                        <span
+                          className="w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-white animate-ping"
+                          title={`${othersOnThisStory.map((a) => a.name || a.email).join(', ')} currently editing this story`}
+                        />
+                      )}
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                          s.publish_scope === 'public_portal'
+                            ? 'bg-green-600 text-white'
+                            : s.publish_scope === 'portal_only'
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-gray-500 text-white'
+                        }`}
+                      >
+                        {s.publish_scope === 'public_portal'
+                          ? 'PUBLIC'
+                          : s.publish_scope === 'portal_only'
+                          ? 'PORTAL'
+                          : 'DRAFT'}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
 
               {selectedStory && (
                 <div className="bg-white border-2 border-[#3e4a28]/20 rounded-xl p-5 space-y-4">
+                  {/* Concurrent View / Edit Collision Alert */}
+                  {(() => {
+                    const othersViewingThisStory = onlineAdmins.filter(
+                      (a) =>
+                        a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                        a.activeTab === 'stories' &&
+                        a.storyId === selectedStory.id
+                    )
+                    if (othersViewingThisStory.length === 0) return null
+                    return (
+                      <div className="bg-amber-100 border-2 border-amber-500 text-amber-950 rounded-xl p-4 flex items-center justify-between gap-3 shadow-sm animate-pulse">
+                        <div className="flex items-center gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                          <div className="text-sm">
+                            <span className="font-extrabold uppercase tracking-wide">
+                              Concurrent Editing Alert:
+                            </span>{' '}
+                            <span className="font-bold">
+                              {othersViewingThisStory.map((a) => a.name || a.email).join(', ')}
+                            </span>{' '}
+                            {othersViewingThisStory.length === 1 ? 'is' : 'are'} currently viewing / editing{' '}
+                            <span className="font-bold uppercase bg-amber-200/80 px-1.5 py-0.5 rounded">
+                              "{selectedStory.title}"
+                            </span>{' '}
+                            in real-time. Coordinate before saving to prevent overwriting content.
+                          </div>
+                        </div>
+                        <div className="flex items-center -space-x-2 shrink-0">
+                          {othersViewingThisStory.map((a) => (
+                            <div
+                              key={a.email}
+                              title={`${a.name || a.email} is active here`}
+                              className="w-7 h-7 rounded-full bg-amber-500 text-white font-bold text-xs flex items-center justify-center ring-2 ring-white overflow-hidden shadow-sm"
+                            >
+                              {a.avatar_url ? (
+                                <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                              ) : (
+                                (a.name || a.email).slice(0, 2).toUpperCase()
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#3e4a28]/10 pb-3">
                     <div className="flex items-center gap-3">
                       <img
@@ -3198,6 +3617,29 @@ export default function App() {
           {/* TAB 5: EVENTS, SUNDAY SESSIONS & WALK FUNDRAISER BANNER */}
           {activeTab === 'events' && (
             <div className="space-y-6">
+              {/* Concurrent Viewers in Tab 5 */}
+              {(() => {
+                const othersInTab5 = onlineAdmins.filter(
+                  (a) =>
+                    a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                    a.activeTab === 'events'
+                )
+                if (othersInTab5.length === 0) return null
+                return (
+                  <div className="bg-amber-100 border-2 border-amber-500 text-amber-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="text-xs">
+                        <strong className="font-bold">
+                          {othersInTab5.map((a) => a.name || a.email).join(', ')}
+                        </strong>{' '}
+                        {othersInTab5.length === 1 ? 'is' : 'are'} also viewing Events & Sunday Sessions.
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Next Sunday Session Card */}
               <div className="bg-[#faf9f4] border-2 border-[#3e4a28]/20 rounded-2xl p-6 shadow-sm space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#3e4a28]/15 pb-3">
@@ -3744,6 +4186,29 @@ export default function App() {
                 </button>
               </div>
 
+              {/* Concurrent Viewers in Tab 6 */}
+              {(() => {
+                const othersInTab6 = onlineAdmins.filter(
+                  (a) =>
+                    a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                    a.activeTab === 'resources'
+                )
+                if (othersInTab6.length === 0) return null
+                return (
+                  <div className="bg-amber-100 border-2 border-amber-500 text-amber-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="text-xs">
+                        <strong className="font-bold">
+                          {othersInTab6.map((a) => a.name || a.email).join(', ')}
+                        </strong>{' '}
+                        {othersInTab6.length === 1 ? 'is' : 'are'} also viewing Carer Resources.
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="space-y-3">
                 {resources.map((res, idx) => (
                   <div
@@ -3957,6 +4422,29 @@ export default function App() {
                   to sign in and modify content.
                 </p>
               </div>
+
+              {/* Concurrent Viewers in Tab 7 */}
+              {(() => {
+                const othersInTab7 = onlineAdmins.filter(
+                  (a) =>
+                    a.email.toLowerCase() !== adminUser.email.toLowerCase() &&
+                    a.activeTab === 'admins'
+                )
+                if (othersInTab7.length === 0) return null
+                return (
+                  <div className="bg-amber-100 border-2 border-amber-500 text-amber-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="text-xs">
+                        <strong className="font-bold">
+                          {othersInTab7.map((a) => a.name || a.email).join(', ')}
+                        </strong>{' '}
+                        {othersInTab7.length === 1 ? 'is' : 'are'} also viewing Administrator Permissions.
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
 
               {adminUser.role === 'super_admin' && (
                 <form
